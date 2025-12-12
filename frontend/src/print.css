@@ -1,0 +1,179 @@
+/* Import Poppins Font */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+
+/* Global Styles */
+body {
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Apply Poppins globally */
+* {
+  font-family: 'Poppins', sans-serif !important;
+  box-sizing: border-box;
+}
+
+/* Print-specific styles for stickers */
+
+/* Hide print-only content on screen, show only when printing */
+.print-only {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+}
+
+@media print {
+  /* Show print-only content when printing */
+  .print-only {
+    position: static;
+    left: auto;
+    top: auto;
+  }
+  /* Ensure colors print */
+  body, * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /* Make sure content is visible */
+  body {
+    background: white !important;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Container should not add spacing in print */
+  .MuiContainer-root {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Ensure page breaks work correctly - ONE STICKER PER PAGE */
+  .sticker-print-page {
+    page-break-after: always !important;
+    break-after: page !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    page-break-before: auto !important;
+    display: block !important;
+    visibility: visible !important;
+    width: 100%;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Remove the last page break to avoid blank page */
+  .sticker-print-page:last-child {
+    page-break-after: auto !important;
+    break-after: auto !important;
+  }
+
+  /* Hide non-printable elements */
+  .MuiAppBar-root,
+  .print-hide {
+    display: none !important;
+  }
+
+  /* Ensure MUI components are visible but don't use flex */
+  .MuiBox-root {
+    visibility: visible !important;
+  }
+  
+  /* Override flex display for print to avoid issues */
+  .MuiBox-root[style*="display: flex"] {
+    display: flex !important;
+  }
+
+  .MuiTypography-root {
+    display: block !important;
+    visibility: visible !important;
+  }
+
+  .MuiDivider-root {
+    display: block !important;
+    visibility: visible !important;
+    border-color: rgba(0, 0, 0, 0.12) !important;
+  }
+
+  /* Remove margins from sticker box in print */
+  .sticker-print-page > .MuiBox-root {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+  }
+
+  /* Ensure borders and backgrounds print */
+  * {
+    box-shadow: none !important;
+  }
+
+  /* Grid layouts should work in print */
+  [style*="display: grid"] {
+    display: grid !important;
+  }
+
+  /* Main List Table print styles */
+  .MuiTableContainer-root {
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+  }
+
+  .MuiTable-root {
+    border-collapse: collapse !important;
+    page-break-inside: auto !important;
+  }
+
+  .MuiTableCell-root {
+    border: 1px solid #000 !important;
+  }
+
+  /* Prevent empty pages after main list */
+  .print-only:last-child {
+    page-break-after: auto !important;
+    break-after: auto !important;
+  }
+
+  /* Ensure no extra spacing causes page breaks */
+  .print-only > .MuiBox-root {
+    page-break-after: auto !important;
+    break-after: auto !important;
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
+  }
+
+  /* Packing List specific - prevent page breaks */
+  .print-only .MuiTableContainer-root {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .print-only .MuiTable-root {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Ensure table rows don't break across pages */
+  .print-only .MuiTableRow-root {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+}
+
+/* Page setup for A4 */
+@page {
+  size: A4;
+  margin: 0;
+}
+
+/* Additional CSS to try to hide browser headers/footers */
+@media print {
+  html, body {
+    height: 100%;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+}
+
