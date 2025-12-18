@@ -8,11 +8,7 @@ const LoadListTable = ({ data }) => {
     workOrderInfo
   } = data;
 
-  const currentDate = new Date().toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  });
+
 
   const containerNo = containerInfo?.ContainerNo || '';
   const shippingLine = containerInfo?.Shipping_Line || '';
@@ -25,8 +21,14 @@ const LoadListTable = ({ data }) => {
     width: row.WIDTH,
     thickness: row.THICKNESS,
     pcs: row.PCS,
+    glue: row.GLUE,
+    type: row.TYPE,
     palletNumber: row.LOTNUMBER || 0
   })).sort((a, b) => a.palletNumber - b.palletNumber);
+
+  // FSC Certification
+  const certificationLegal = workOrderInfo?.CERTIFICATION_LEGAL || '';
+  const isFSC = certificationLegal.toUpperCase().includes('FSC');
 
   // Calculate total pallets
   const calculatedTotalPallets = loadListRows.length;
@@ -114,12 +116,7 @@ const LoadListTable = ({ data }) => {
         overflow: 'visible'
       }
     }}>
-      {/* Date */}
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
-        <Typography sx={{ fontSize: `${getScaledValue(1.0, 0.65)}rem`, color: '#666', fontWeight: 500 }}>
-          {currentDate}
-        </Typography>
-      </Box>
+
 
       {/* Title */}
       <Box sx={{ textAlign: 'center', mb: headerMarginBottom }}>
@@ -150,6 +147,11 @@ const LoadListTable = ({ data }) => {
         <Typography sx={{ fontSize: headerFontSize, fontWeight: 600, textAlign: 'left' }}>
           TOTAL NUMBER OF PALLETS : {calculatedTotalPallets} PALLETS
         </Typography>
+        {isFSC && (
+          <Typography sx={{ fontSize: headerFontSize, fontWeight: 700, textAlign: 'left', mt: 0.5 }}>
+            LEVEL CERTIFICATION: FSC 100%
+          </Typography>
+        )}
       </Box>
 
       {/* Table */}
@@ -187,6 +189,26 @@ const LoadListTable = ({ data }) => {
               }}>
                 PCS. PER PALLET
               </TableCell>
+              <TableCell sx={{ 
+                border: '1px solid #000', 
+                fontWeight: 700, 
+                textAlign: 'center', 
+                py: tableHeaderPaddingY, 
+                fontSize: tableHeaderFontSize, 
+                px: 0.6 
+              }}>
+                GLUE
+              </TableCell>
+              <TableCell sx={{ 
+                border: '1px solid #000', 
+                fontWeight: 700, 
+                textAlign: 'center', 
+                py: tableHeaderPaddingY, 
+                fontSize: tableHeaderFontSize, 
+                px: 0.6 
+              }}>
+                TYPE
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -218,6 +240,24 @@ const LoadListTable = ({ data }) => {
                   px: 0.6
                 }}>
                   {row.pcs}
+                </TableCell>
+                <TableCell sx={{ 
+                  border: '1px solid #000', 
+                  textAlign: 'center',
+                  py: tableDataPaddingY,
+                  fontSize: tableDataFontSize,
+                  px: 0.6
+                }}>
+                  {row.glue || ''}
+                </TableCell>
+                <TableCell sx={{ 
+                  border: '1px solid #000', 
+                  textAlign: 'center',
+                  py: tableDataPaddingY,
+                  fontSize: tableDataFontSize,
+                  px: 0.6
+                }}>
+                  {row.type || ''}
                 </TableCell>
               </TableRow>
             ))}

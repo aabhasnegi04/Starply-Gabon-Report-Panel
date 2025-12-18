@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   AppBar, Toolbar, Typography, Button, Box, Chip, Drawer, List, ListItem, ListItemButton, 
   ListItemIcon, ListItemText, IconButton, Collapse
@@ -33,9 +33,29 @@ const DRAWER_WIDTH = 260;
 
 const Dashboard = ({ user, onLogout }) => {
   const [activeView, setActiveView] = useState('sticker');
-  const [drawerOpen, setDrawerOpen] = useState(true);
-  const [logisticsOpen, setLogisticsOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false); // Start closed on mobile
+  const [logisticsOpen, setLogisticsOpen] = useState(true); // Start expanded
   const [summaryOpen, setSummaryOpen] = useState(false);
+
+  // Handle responsive drawer behavior
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 900) {
+        setDrawerOpen(true); // Auto-open on desktop
+      } else {
+        setDrawerOpen(false); // Auto-close on mobile
+      }
+    };
+
+    // Set initial state
+    handleResize();
+
+    // Add event listener
+    window.addEventListener('resize', handleResize);
+
+    // Cleanup
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const menuSections = [
     {
@@ -69,6 +89,10 @@ const Dashboard = ({ user, onLogout }) => {
 
   const handleViewChange = (viewId) => {
     setActiveView(viewId);
+    // Close drawer on mobile after selection
+    if (window.innerWidth < 900) {
+      setDrawerOpen(false);
+    }
   };
 
   const renderActiveView = () => {
@@ -102,7 +126,7 @@ const Dashboard = ({ user, onLogout }) => {
     <Box sx={{ height: '100%', background: '#ffffff', display: 'flex', flexDirection: 'column' }}>
       {/* Logo/Title Section with Close Button */}
       <Box sx={{ 
-        p: 3, 
+        p: { xs: 2, sm: 3 }, 
         borderBottom: '1px solid #e0e0e0',
         background: '#1b4332',
         display: 'flex',
@@ -111,8 +135,13 @@ const Dashboard = ({ user, onLogout }) => {
         gap: 1.5
       }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <DescriptionIcon sx={{ fontSize: 28, color: '#ffffff' }} />
-          <Typography variant="h6" sx={{ fontWeight: 600, color: '#ffffff', letterSpacing: '0.3px' }}>
+          <DescriptionIcon sx={{ fontSize: { xs: 24, sm: 28 }, color: '#ffffff' }} />
+          <Typography variant="h6" sx={{ 
+            fontWeight: 600, 
+            color: '#ffffff', 
+            letterSpacing: '0.3px',
+            fontSize: { xs: '1.1rem', sm: '1.25rem' }
+          }}>
             Starply Report
           </Typography>
         </Box>
@@ -120,6 +149,7 @@ const Dashboard = ({ user, onLogout }) => {
           onClick={handleDrawerToggle}
           sx={{
             color: '#ffffff',
+            display: { xs: 'flex', md: 'none' }, // Only show close button on mobile
             '&:hover': {
               backgroundColor: 'rgba(255, 255, 255, 0.1)',
             }
@@ -130,7 +160,7 @@ const Dashboard = ({ user, onLogout }) => {
       </Box>
 
       {/* Menu Items */}
-      <Box sx={{ pt: 2, px: 1.5, flexGrow: 1 }}>
+      <Box sx={{ pt: 2, px: { xs: 1, sm: 1.5 }, flexGrow: 1 }}>
         {menuSections.map((section, sectionIndex) => {
           const isOpen = section.key === 'logistics' ? logisticsOpen : summaryOpen;
           const setOpen = section.key === 'logistics' ? setLogisticsOpen : setSummaryOpen;
@@ -142,8 +172,8 @@ const Dashboard = ({ user, onLogout }) => {
                 onClick={() => setOpen(!isOpen)}
                 sx={{
                   borderRadius: 1.5,
-                  py: 1.5,
-                  px: 2,
+                  py: { xs: 1, sm: 1.5 },
+                  px: { xs: 1.5, sm: 2 },
                   mb: 0.5,
                   '&:hover': {
                     backgroundColor: '#f5f5f5',
@@ -172,8 +202,8 @@ const Dashboard = ({ user, onLogout }) => {
                         onClick={() => handleViewChange(item.id)}
                         sx={{
                           borderRadius: 1.5,
-                          py: 1.5,
-                          px: 2,
+                          py: { xs: 1, sm: 1.5 },
+                          px: { xs: 1.5, sm: 2 },
                           backgroundColor: activeView === item.id ? '#1b4332' : 'transparent',
                           color: activeView === item.id ? '#ffffff' : '#666',
                           '&:hover': {
@@ -184,7 +214,7 @@ const Dashboard = ({ user, onLogout }) => {
                         }}
                       >
                         <ListItemIcon sx={{ 
-                          minWidth: 40, 
+                          minWidth: { xs: 36, sm: 40 }, 
                           color: activeView === item.id ? '#ffffff' : '#666',
                         }}>
                           {item.icon}
@@ -193,7 +223,7 @@ const Dashboard = ({ user, onLogout }) => {
                           primary={item.label} 
                           primaryTypographyProps={{
                             fontWeight: activeView === item.id ? 600 : 500,
-                            fontSize: '0.95rem',
+                            fontSize: { xs: '0.9rem', sm: '0.95rem' },
                           }}
                         />
                       </ListItemButton>
@@ -220,7 +250,10 @@ const Dashboard = ({ user, onLogout }) => {
           borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
         }}
       >
-        <Toolbar sx={{ py: 1.5 }}>
+        <Toolbar sx={{ 
+          py: { xs: 1, sm: 1.5 },
+          minHeight: { xs: '56px', sm: '64px' }
+        }}>
           <IconButton
             sx={{ color: 'white', mr: 2 }}
             onClick={handleDrawerToggle}
@@ -235,10 +268,28 @@ const Dashboard = ({ user, onLogout }) => {
               flexGrow: 1, 
               fontWeight: 600, 
               color: '#ffffff', 
-              letterSpacing: '0.3px'
+              letterSpacing: '0.3px',
+              fontSize: { xs: '1.1rem', sm: '1.25rem' },
+              display: { xs: 'none', sm: 'block' }
             }}
           >
             Starply Report
+          </Typography>
+          
+          {/* Mobile Title - Shorter */}
+          <Typography 
+            variant="h6" 
+            component="div" 
+            sx={{ 
+              flexGrow: 1, 
+              fontWeight: 600, 
+              color: '#ffffff', 
+              letterSpacing: '0.3px',
+              fontSize: '1.1rem',
+              display: { xs: 'block', sm: 'none' }
+            }}
+          >
+            Starply
           </Typography>
           
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, ml: 'auto' }}>
@@ -255,36 +306,43 @@ const Dashboard = ({ user, onLogout }) => {
             />
             <Button
               variant="outlined"
-              startIcon={<LogoutIcon />}
+              startIcon={<LogoutIcon sx={{ display: { xs: 'none', sm: 'block' } }} />}
               onClick={onLogout}
               sx={{
                 color: 'white',
                 borderColor: 'rgba(255, 255, 255, 0.3)',
                 textTransform: 'none',
                 fontWeight: 500,
+                minWidth: { xs: '40px', sm: 'auto' },
+                px: { xs: 1, sm: 2 },
                 '&:hover': {
                   borderColor: 'white',
                   backgroundColor: 'rgba(255, 255, 255, 0.1)',
                 }
               }}
             >
-              Logout
+              <Box sx={{ display: { xs: 'none', sm: 'block' } }}>Logout</Box>
+              <LogoutIcon sx={{ display: { xs: 'block', sm: 'none' } }} />
             </Button>
           </Box>
         </Toolbar>
       </AppBar>
 
-      {/* Drawer - Persistent, pushes content */}
+      {/* Drawer - Responsive: Temporary on mobile, Persistent on desktop */}
       <Drawer
-        variant="persistent"
+        variant={{ xs: 'temporary', md: 'persistent' }}
         open={drawerOpen}
+        onClose={handleDrawerToggle}
+        ModalProps={{
+          keepMounted: true, // Better open performance on mobile
+        }}
         sx={{
           '& .MuiDrawer-paper': { 
             boxSizing: 'border-box', 
             width: DRAWER_WIDTH,
             borderRight: '1px solid #e0e0e0',
-            mt: '64px',
-            height: 'calc(100% - 64px)'
+            mt: { xs: '56px', sm: '64px' }, // Smaller AppBar on mobile
+            height: { xs: 'calc(100% - 56px)', sm: 'calc(100% - 64px)' }
           },
         }}
       >
@@ -296,11 +354,20 @@ const Dashboard = ({ user, onLogout }) => {
         component="main"
         sx={{
           flexGrow: 1,
-          width: drawerOpen ? `calc(100% - ${DRAWER_WIDTH}px)` : '100%',
-          ml: drawerOpen ? `${DRAWER_WIDTH}px` : 0,
-          transition: 'margin-left 200ms ease, width 200ms ease',
-          mt: '64px', // Height of AppBar
-          minHeight: 'calc(100vh - 64px)',
+          width: { 
+            xs: '100%', 
+            md: drawerOpen ? `calc(100% - ${DRAWER_WIDTH}px)` : '100%' 
+          },
+          ml: { 
+            xs: 0, 
+            md: drawerOpen ? `${DRAWER_WIDTH}px` : 0 
+          },
+          transition: { 
+            xs: 'none', 
+            md: 'margin-left 200ms ease, width 200ms ease' 
+          },
+          mt: { xs: '56px', sm: '64px' }, // Responsive AppBar height
+          minHeight: { xs: 'calc(100vh - 56px)', sm: 'calc(100vh - 64px)' },
         }}
       >
         {renderActiveView()}

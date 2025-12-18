@@ -6,8 +6,10 @@ import {
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import PrintIcon from '@mui/icons-material/Print';
+import DownloadIcon from '@mui/icons-material/Download';
 import ListIcon from '@mui/icons-material/List';
 import { useReactToPrint } from 'react-to-print';
+import * as XLSX from 'xlsx';
 import MainListTable from './MainListTable';
 import { API_URL } from '../../config';
 
@@ -44,6 +46,48 @@ const MainListView = () => {
       }
     `
   });
+
+  const handleExcelDownload = () => {
+    if (!data || !data.mainRows.length) return;
+
+    // Prepare data for Excel export
+    const excelData = data.mainRows.map((row, index) => ({
+      'Pallet No.': row.LOTNUMBER || `${index + 1}/${data.mainRows.length}`,
+      'Description': `Contre-plaqué ${row.LENGTH} X ${row.WIDTH} X ${row.THICKNESS} MM`,
+      'Quantity (PCS)': row.PCS,
+      'CBM': parseFloat(row.CBM).toFixed(3),
+      'Length (mm)': row.LENGTH,
+      'Width (mm)': row.WIDTH,
+      'Thickness (mm)': row.THICKNESS,
+      'Quality': row.QUALITY,
+      'Species': row.SPECIES,
+      'Glue': row.GLUE,
+      'Type': row.TYPE
+    }));
+
+    // Add summary row
+    const totalQuantity = data.mainRows.reduce((sum, row) => sum + (parseInt(row.PCS) || 0), 0);
+    const totalCBM = data.mainRows.reduce((sum, row) => sum + (parseFloat(row.CBM) || 0), 0);
+    
+    excelData.push({
+      'Pallet No.': '',
+      'Description': 'TOTALS',
+      'Quantity (PCS)': totalQuantity,
+      'CBM': totalCBM.toFixed(3),
+      'Length (mm)': '',
+      'Width (mm)': '',
+      'Thickness (mm)': '',
+      'Quality': '',
+      'Species': '',
+      'Glue': '',
+      'Type': ''
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Main List');
+    XLSX.writeFile(workbook, `Main_List_${container}_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
 
   const handleSearch = async () => {
     setLoading(true);
@@ -107,7 +151,7 @@ const MainListView = () => {
             Main List Container Search
             </Typography>
           </Box>
-          <Box display="flex" gap={2} alignItems="stretch">
+          <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} alignItems="stretch">
             <TextField
               label="Enter Container Number"
               variant="outlined"
@@ -190,28 +234,52 @@ const MainListView = () => {
                   </Typography>
                 </Box>
               </Box>
-              <Button
-                variant="contained"
-                size="large"
-                startIcon={<PrintIcon />}
-                onClick={handlePrint}
-                sx={{
-                  minWidth: 160,
-                  borderRadius: 1,
-                  fontSize: '0.95rem',
-                  fontWeight: 500,
-                  background: '#1b4332',
-                  color: 'white',
-                  textTransform: 'none',
-                  boxShadow: 'none',
-                  '&:hover': {
-                    background: '#0f2419',
+              <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2}>
+                <Button
+                  variant="contained"
+                  size="large"
+                  startIcon={<DownloadIcon />}
+                  onClick={handleExcelDownload}
+                  sx={{
+                    minWidth: 160,
+                    borderRadius: 1,
+                    fontSize: '0.95rem',
+                    fontWeight: 500,
+                    background: '#2e7d32',
+                    color: 'white',
+                    textTransform: 'none',
                     boxShadow: 'none',
-                  }
-                }}
-              >
-                Print
-              </Button>
+                    '&:hover': {
+                      background: '#1b5e20',
+                      boxShadow: 'none',
+                    }
+                  }}
+                >
+                  Excel
+                </Button>
+                <Button
+                  variant="contained"
+                  size="large"
+                  startIcon={<PrintIcon />}
+                  onClick={handlePrint}
+                  sx={{
+                    minWidth: 160,
+                    borderRadius: 1,
+                    fontSize: '0.95rem',
+                    fontWeight: 500,
+                    background: '#1b4332',
+                    color: 'white',
+                    textTransform: 'none',
+                    boxShadow: 'none',
+                    '&:hover': {
+                      background: '#0f2419',
+                      boxShadow: 'none',
+                    }
+                  }}
+                >
+                  Print
+                </Button>
+              </Box>
             </Box>
           </CardContent>
         </Card>
@@ -235,22 +303,116 @@ const MainListView = () => {
       {/* Preview Table */}
       {data && (
         <Box className="print-hide" sx={{ mb: 4 }}>
-          <TableContainer component={Paper} sx={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)', border: '1px solid #e0e0e0' }}>
-            <Table sx={{ minWidth: 650 }} size="small">
+          <TableContainer component={Paper} sx={{ 
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)', 
+            border: '1px solid #e0e0e0',
+            overflowX: 'auto'
+          }}>
+            <Table sx={{ 
+              minWidth: { xs: 1200, md: 650 },
+              '& .MuiTableCell-root': {
+                fontSize: { xs: '0.7rem', sm: '0.875rem' },
+                padding: { xs: '2px 4px', sm: '8px 16px' }
+              }
+            }} size="small">
               <TableHead>
                 <TableRow sx={{ backgroundColor: '#ffb74d' }}>
-                  <TableCell sx={{ fontWeight: 700, textAlign: 'center', py: 1 }}>S.No.</TableCell>
-                  <TableCell sx={{ fontWeight: 700, textAlign: 'center', py: 1 }}>Length</TableCell>
-                  <TableCell sx={{ fontWeight: 700, textAlign: 'center', py: 1 }}>Width</TableCell>
-                  <TableCell sx={{ fontWeight: 700, textAlign: 'center', py: 1 }}>Thickness</TableCell>
-                  <TableCell sx={{ fontWeight: 700, textAlign: 'center', py: 1 }}>Quality</TableCell>
-                  <TableCell sx={{ fontWeight: 700, textAlign: 'center', py: 1 }}>No. of Pcs</TableCell>
-                  <TableCell sx={{ fontWeight: 700, textAlign: 'center', py: 1 }}>Species</TableCell>
-                  <TableCell sx={{ fontWeight: 700, textAlign: 'center', py: 1 }}>Type of Glue</TableCell>
-                  <TableCell sx={{ fontWeight: 700, textAlign: 'center', py: 1 }}>Class</TableCell>
-                  <TableCell sx={{ fontWeight: 700, textAlign: 'center', py: 1 }}>Lot Number</TableCell>
-                  <TableCell sx={{ fontWeight: 700, textAlign: 'center', py: 1 }}>Total Pallets</TableCell>
-                  <TableCell sx={{ fontWeight: 700, textAlign: 'center', py: 1 }}>CBM</TableCell>
+                  <TableCell sx={{ 
+                    fontWeight: 700, 
+                    textAlign: 'center', 
+                    py: 1,
+                    minWidth: { xs: '60px', sm: '80px' }
+                  }}>
+                    S.No.
+                  </TableCell>
+                  <TableCell sx={{ 
+                    fontWeight: 700, 
+                    textAlign: 'center', 
+                    py: 1,
+                    minWidth: { xs: '80px', sm: '100px' }
+                  }}>
+                    Length
+                  </TableCell>
+                  <TableCell sx={{ 
+                    fontWeight: 700, 
+                    textAlign: 'center', 
+                    py: 1,
+                    minWidth: { xs: '80px', sm: '100px' }
+                  }}>
+                    Width
+                  </TableCell>
+                  <TableCell sx={{ 
+                    fontWeight: 700, 
+                    textAlign: 'center', 
+                    py: 1,
+                    minWidth: { xs: '80px', sm: '100px' }
+                  }}>
+                    Thickness
+                  </TableCell>
+                  <TableCell sx={{ 
+                    fontWeight: 700, 
+                    textAlign: 'center', 
+                    py: 1,
+                    minWidth: { xs: '80px', sm: '100px' }
+                  }}>
+                    Quality
+                  </TableCell>
+                  <TableCell sx={{ 
+                    fontWeight: 700, 
+                    textAlign: 'center', 
+                    py: 1,
+                    minWidth: { xs: '80px', sm: '100px' }
+                  }}>
+                    No. of Pcs
+                  </TableCell>
+                  <TableCell sx={{ 
+                    fontWeight: 700, 
+                    textAlign: 'center', 
+                    py: 1,
+                    minWidth: { xs: '80px', sm: '100px' }
+                  }}>
+                    Species
+                  </TableCell>
+                  <TableCell sx={{ 
+                    fontWeight: 700, 
+                    textAlign: 'center', 
+                    py: 1,
+                    minWidth: { xs: '100px', sm: '120px' }
+                  }}>
+                    Type of Glue
+                  </TableCell>
+                  <TableCell sx={{ 
+                    fontWeight: 700, 
+                    textAlign: 'center', 
+                    py: 1,
+                    minWidth: { xs: '80px', sm: '100px' }
+                  }}>
+                    Type
+                  </TableCell>
+                  <TableCell sx={{ 
+                    fontWeight: 700, 
+                    textAlign: 'center', 
+                    py: 1,
+                    minWidth: { xs: '100px', sm: '120px' }
+                  }}>
+                    Lot Number
+                  </TableCell>
+                  <TableCell sx={{ 
+                    fontWeight: 700, 
+                    textAlign: 'center', 
+                    py: 1,
+                    minWidth: { xs: '100px', sm: '120px' }
+                  }}>
+                    Total Pallets
+                  </TableCell>
+                  <TableCell sx={{ 
+                    fontWeight: 700, 
+                    textAlign: 'center', 
+                    py: 1,
+                    minWidth: { xs: '80px', sm: '100px' }
+                  }}>
+                    CBM
+                  </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -264,7 +426,7 @@ const MainListView = () => {
                     <TableCell sx={{ textAlign: 'right' }}>{row.PCS || ''}</TableCell>
                     <TableCell sx={{ textAlign: 'center' }}>{row.SPECIES || ''}</TableCell>
                     <TableCell sx={{ textAlign: 'center' }}>{row.GLUE || ''}</TableCell>
-                    <TableCell sx={{ textAlign: 'center' }}>{row.CLASS || ''}</TableCell>
+                    <TableCell sx={{ textAlign: 'center' }}>{row.TYPE || ''}</TableCell>
                     <TableCell sx={{ textAlign: 'center' }}>{row.LOTNUMBER || ''}</TableCell>
                     <TableCell sx={{ textAlign: 'center' }}>{row.TOTAL_PALLETS || ''}</TableCell>
                     <TableCell sx={{ textAlign: 'right' }}>{row.CBM || ''}</TableCell>

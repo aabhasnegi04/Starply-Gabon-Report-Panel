@@ -2,8 +2,10 @@ import React, { useState, useRef } from 'react';
 import { TextField, Button, Container, Box, Card, CardContent, CircularProgress, Alert, Typography } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import PrintIcon from '@mui/icons-material/Print';
+import DownloadIcon from '@mui/icons-material/Download';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import { useReactToPrint } from 'react-to-print';
+import * as XLSX from 'xlsx';
 import Sticker from '../common/Sticker';
 import { API_URL } from '../../config';
 
@@ -29,6 +31,32 @@ const StickerView = () => {
       }
     `
   });
+
+  const handleExcelDownload = () => {
+    if (!stickers.length) return;
+
+    // Prepare data for Excel export
+    const excelData = stickers.map((sticker, index) => ({
+      'Sticker No.': index + 1,
+      'Container': container,
+      'Pallet No.': sticker.palletNo,
+      'Description': sticker.description,
+      'Quantity (PCS)': sticker.quantity,
+      'CBM': sticker.cbm,
+      'Length (mm)': sticker.length,
+      'Width (mm)': sticker.width,
+      'Thickness (mm)': sticker.thickness,
+      'Quality': sticker.quality,
+      'Species': sticker.species,
+      'Glue': sticker.glue,
+      'Class': sticker.class
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Stickers');
+    XLSX.writeFile(workbook, `Stickers_${container}_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
 
   // Fetch stickers from backend
   const handleSearch = async () => {
@@ -58,23 +86,36 @@ const StickerView = () => {
         certificatesRow.CERTIFICATE5
       ].filter(Boolean);
 
-      const stickerList = mainStickerRows.map(row => ({
-        company: companyInfo.Company_Name || '',
-        consignee: mainHeader.Client_Name || '',
-        destination,
-        length: row.LENGTH,
-        width: row.WIDTH,
-        thickness: row.THICKNESS,
-        quality: row.QUALITY,
-        pcs: row.PCS,
-        species: row.SPECIES,
-        glue: row.GLUE,
-        productClass: row.CLASS,
-        lotNumber: row.LOTNUMBER,
-        totalPallets: row.TOTAL_PALLETS,
-        orderNo: mainHeader.Work_OrderNo || '',
-        certificates
-      }));
+      const stickerList = mainStickerRows.map(row => {
+        // Get CERTIFICATION_LEGAL from mainHeader (recordset 1) - it's the same for all pallets
+        const certificationLegal = mainHeader.CERTIFICATION_LEGAL || '';
+        const isFSC = certificationLegal.toUpperCase().includes('FSC');
+        
+        // Add FSC certification to certificates if it's FSC
+        const allCertificates = [...certificates];
+        if (isFSC) {
+          allCertificates.push('LEVEL CERTIFICATION : FSC 100%');
+        }
+
+        return {
+          company: companyInfo.Company_Name || '',
+          consignee: mainHeader.SHIPTO_PARTYNAME || '',
+          destination,
+          length: row.LENGTH,
+          width: row.WIDTH,
+          thickness: row.THICKNESS,
+          quality: row.QUALITY,
+          pcs: row.PCS,
+          cbm: parseFloat(row.CBM || 0).toFixed(3),
+          species: row.SPECIES,
+          glue: row.GLUE,
+          productClass: row.CLASS,
+          lotNumber: row.LOTNUMBER,
+          totalPallets: row.TOTAL_PALLETS,
+          orderNo: mainHeader.Work_OrderNo || '',
+          certificates: allCertificates
+        };
+      });
       setStickers(stickerList);
       if (stickerList.length === 0) setError('No records found for this container.');
     } catch (e) {
@@ -101,7 +142,7 @@ const StickerView = () => {
               Sticker Container Search
             </Typography>
           </Box>
-          <Box display="flex" gap={2} alignItems="stretch">
+          <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} alignItems="stretch">
             <TextField
               label="Enter Container Number"
               variant="outlined"
@@ -184,28 +225,52 @@ const StickerView = () => {
                   </Typography>
                 </Box>
               </Box>
-              <Button
-                variant="contained"
-                size="large"
-                startIcon={<PrintIcon />}
-                onClick={handlePrint}
-                sx={{
-                  minWidth: 160,
-                  borderRadius: 1,
-                  fontSize: '0.95rem',
-                  fontWeight: 500,
-                  background: '#1b4332',
-                  color: 'white',
-                  textTransform: 'none',
-                  boxShadow: 'none',
-                  '&:hover': {
-                    background: '#0f2419',
+              <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2}>
+                <Button
+                  variant="contained"
+                  size="large"
+                  startIcon={<DownloadIcon />}
+                  onClick={handleExcelDownload}
+                  sx={{
+                    minWidth: 160,
+                    borderRadius: 1,
+                    fontSize: '0.95rem',
+                    fontWeight: 500,
+                    background: '#2e7d32',
+                    color: 'white',
+                    textTransform: 'none',
                     boxShadow: 'none',
-                  }
-                }}
-              >
-                Print All
-              </Button>
+                    '&:hover': {
+                      background: '#1b5e20',
+                      boxShadow: 'none',
+                    }
+                  }}
+                >
+                  Excel
+                </Button>
+                <Button
+                  variant="contained"
+                  size="large"
+                  startIcon={<PrintIcon />}
+                  onClick={handlePrint}
+                  sx={{
+                    minWidth: 160,
+                    borderRadius: 1,
+                    fontSize: '0.95rem',
+                    fontWeight: 500,
+                    background: '#1b4332',
+                    color: 'white',
+                    textTransform: 'none',
+                    boxShadow: 'none',
+                    '&:hover': {
+                      background: '#0f2419',
+                      boxShadow: 'none',
+                    }
+                  }}
+                >
+                  Print All
+                </Button>
+              </Box>
             </Box>
           </CardContent>
         </Card>

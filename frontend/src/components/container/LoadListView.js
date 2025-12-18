@@ -6,8 +6,10 @@ import {
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import PrintIcon from '@mui/icons-material/Print';
+import DownloadIcon from '@mui/icons-material/Download';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import { useReactToPrint } from 'react-to-print';
+import * as XLSX from 'xlsx';
 import LoadListTable from './LoadListTable';
 import { API_URL } from '../../config';
 
@@ -44,6 +46,48 @@ const LoadListView = () => {
       }
     `
   });
+
+  const handleExcelDownload = () => {
+    if (!data || !data.mainRows.length) return;
+
+    // Prepare data for Excel export
+    const excelData = data.mainRows.map((row, index) => ({
+      'Pallet No.': row.LOTNUMBER || `${index + 1}/${data.mainRows.length}`,
+      'Description': `Contre-plaqué ${row.LENGTH} X ${row.WIDTH} X ${row.THICKNESS} MM`,
+      'Quantity (PCS)': row.PCS,
+      'Glue': row.GLUE,
+      'Type': row.TYPE,
+      'CBM': parseFloat(row.CBM).toFixed(3),
+      'Length (mm)': row.LENGTH,
+      'Width (mm)': row.WIDTH,
+      'Thickness (mm)': row.THICKNESS,
+      'Quality': row.QUALITY,
+      'Species': row.SPECIES
+    }));
+
+    // Add summary row
+    const totalQuantity = data.mainRows.reduce((sum, row) => sum + (parseInt(row.PCS) || 0), 0);
+    const totalCBM = data.mainRows.reduce((sum, row) => sum + (parseFloat(row.CBM) || 0), 0);
+    
+    excelData.push({
+      'Pallet No.': '',
+      'Description': 'TOTALS',
+      'Quantity (PCS)': totalQuantity,
+      'Glue': '',
+      'Type': '',
+      'CBM': totalCBM.toFixed(3),
+      'Length (mm)': '',
+      'Width (mm)': '',
+      'Thickness (mm)': '',
+      'Quality': '',
+      'Species': ''
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Load List');
+    XLSX.writeFile(workbook, `Load_List_${container}_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
 
   const handleSearch = async () => {
     setLoading(true);
@@ -97,6 +141,8 @@ const LoadListView = () => {
       width: row.WIDTH,
       thickness: row.THICKNESS,
       pcs: row.PCS,
+      glue: row.GLUE,
+      type: row.TYPE,
       palletNumber: row.LOTNUMBER || 0
     })).sort((a, b) => a.palletNumber - b.palletNumber);
   };
@@ -118,7 +164,7 @@ const LoadListView = () => {
               Load List Container Search
             </Typography>
           </Box>
-          <Box display="flex" gap={2} alignItems="stretch">
+          <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} alignItems="stretch">
             <TextField
               label="Enter Container Number"
               variant="outlined"
@@ -201,28 +247,52 @@ const LoadListView = () => {
                   </Typography>
                 </Box>
               </Box>
-              <Button
-                variant="contained"
-                size="large"
-                startIcon={<PrintIcon />}
-                onClick={handlePrint}
-                sx={{
-                  minWidth: 160,
-                  borderRadius: 1,
-                  fontSize: '0.95rem',
-                  fontWeight: 500,
-                  background: '#1b4332',
-                  color: 'white',
-                  textTransform: 'none',
-                  boxShadow: 'none',
-                  '&:hover': {
-                    background: '#0f2419',
+              <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2}>
+                <Button
+                  variant="contained"
+                  size="large"
+                  startIcon={<DownloadIcon />}
+                  onClick={handleExcelDownload}
+                  sx={{
+                    minWidth: 160,
+                    borderRadius: 1,
+                    fontSize: '0.95rem',
+                    fontWeight: 500,
+                    background: '#2e7d32',
+                    color: 'white',
+                    textTransform: 'none',
                     boxShadow: 'none',
-                  }
-                }}
-              >
-                Print
-              </Button>
+                    '&:hover': {
+                      background: '#1b5e20',
+                      boxShadow: 'none',
+                    }
+                  }}
+                >
+                  Excel
+                </Button>
+                <Button
+                  variant="contained"
+                  size="large"
+                  startIcon={<PrintIcon />}
+                  onClick={handlePrint}
+                  sx={{
+                    minWidth: 160,
+                    borderRadius: 1,
+                    fontSize: '0.95rem',
+                    fontWeight: 500,
+                    background: '#1b4332',
+                    color: 'white',
+                    textTransform: 'none',
+                    boxShadow: 'none',
+                    '&:hover': {
+                      background: '#0f2419',
+                      boxShadow: 'none',
+                    }
+                  }}
+                >
+                  Print
+                </Button>
+              </Box>
             </Box>
           </CardContent>
         </Card>
@@ -261,16 +331,68 @@ const LoadListView = () => {
               <Typography sx={{ fontSize: '0.95rem', fontWeight: 600 }}>
                 TOTAL NUMBER OF PALLETS : {data.mainRows.length} PALLETS
               </Typography>
+              {(data.workOrderInfo?.CERTIFICATION_LEGAL || '').toUpperCase().includes('FSC') && (
+                <Typography sx={{ fontSize: '0.95rem', fontWeight: 700, color: '#1b4332', mt: 1 }}>
+                  LEVEL CERTIFICATION: FSC 100%
+                </Typography>
+              )}
             </Box>
 
             {/* Table */}
-            <TableContainer component={Paper} sx={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)', border: '1px solid #e0e0e0' }}>
-              <Table sx={{ minWidth: 650 }} size="small">
+            <TableContainer component={Paper} sx={{ 
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)', 
+              border: '1px solid #e0e0e0',
+              overflowX: 'auto'
+            }}>
+              <Table sx={{ 
+                minWidth: { xs: 700, md: 650 },
+                '& .MuiTableCell-root': {
+                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                  padding: { xs: '4px 8px', sm: '8px 16px' }
+                }
+              }} size="small">
                 <TableHead>
                   <TableRow sx={{ backgroundColor: '#ffb74d' }}>
-                    <TableCell sx={{ fontWeight: 700, textAlign: 'center', py: 1 }}>SIZE AND THICKNESS</TableCell>
-                    <TableCell sx={{ fontWeight: 700, textAlign: 'center', py: 1 }}>NO. OF PALLETS</TableCell>
-                    <TableCell sx={{ fontWeight: 700, textAlign: 'center', py: 1 }}>PCS. PER PALLET</TableCell>
+                    <TableCell sx={{ 
+                      fontWeight: 700, 
+                      textAlign: 'center', 
+                      py: 1,
+                      minWidth: { xs: '180px', sm: '200px' }
+                    }}>
+                      SIZE AND THICKNESS
+                    </TableCell>
+                    <TableCell sx={{ 
+                      fontWeight: 700, 
+                      textAlign: 'center', 
+                      py: 1,
+                      minWidth: { xs: '100px', sm: '120px' }
+                    }}>
+                      NO. OF PALLETS
+                    </TableCell>
+                    <TableCell sx={{ 
+                      fontWeight: 700, 
+                      textAlign: 'center', 
+                      py: 1,
+                      minWidth: { xs: '120px', sm: '140px' }
+                    }}>
+                      PCS. PER PALLET
+                    </TableCell>
+                    <TableCell sx={{ 
+                      fontWeight: 700, 
+                      textAlign: 'center', 
+                      py: 1,
+                      minWidth: { xs: '80px', sm: '100px' }
+                    }}>
+                      GLUE
+                    </TableCell>
+                    <TableCell sx={{ 
+                      fontWeight: 700, 
+                      textAlign: 'center', 
+                      py: 1,
+                      minWidth: { xs: '80px', sm: '100px' }
+                    }}>
+                      TYPE
+                    </TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -284,6 +406,12 @@ const LoadListView = () => {
                       </TableCell>
                       <TableCell sx={{ textAlign: 'center' }}>
                         {row.pcs}
+                      </TableCell>
+                      <TableCell sx={{ textAlign: 'center' }}>
+                        {row.glue || ''}
+                      </TableCell>
+                      <TableCell sx={{ textAlign: 'center' }}>
+                        {row.type || ''}
                       </TableCell>
                     </TableRow>
                   ))}

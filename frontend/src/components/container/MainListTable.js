@@ -8,11 +8,7 @@ const MainListTable = ({ data }) => {
     containerInfo
   } = data;
 
-  const currentDate = new Date().toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  });
+
 
   const orderNo = containerInfo?.ORDERNO || workOrderInfo?.Work_OrderNo || '';
   const destination = containerInfo?.DESTINATION || workOrderInfo?.DESTINATION_PORTNAME || '';
@@ -75,7 +71,6 @@ const MainListTable = ({ data }) => {
   const tableDataFontSize = `${getScaledValue(0.85, 0.55)}rem`;
   const tableDataPaddingY = getTableDataPaddingY();
   const tableDataPaddingX = getScaledValue(0.6, 0.25);
-  const dateMarginBottom = getScaledValue(1.0, 0.3);
 
   return (
     <Box sx={{
@@ -94,12 +89,7 @@ const MainListTable = ({ data }) => {
         overflow: 'visible'
       }
     }}>
-      {/* Date */}
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: dateMarginBottom }}>
-        <Typography sx={{ fontSize: dateFontSize, color: '#666', fontWeight: 500 }}>
-          {currentDate}
-        </Typography>
-      </Box>
+
 
       {/* Header - PO NO. and DEST */}
       <Box sx={{ 
@@ -165,7 +155,7 @@ const MainListTable = ({ data }) => {
                 Type of Glue
               </TableCell>
               <TableCell sx={{ border: '1px solid #000', fontWeight: 700, textAlign: 'center', py: tableHeaderPaddingY, fontSize: tableHeaderFontSize, px: tableHeaderPaddingX }}>
-                Class
+                Type
               </TableCell>
               <TableCell sx={{ border: '1px solid #000', fontWeight: 700, textAlign: 'center', py: tableHeaderPaddingY, fontSize: tableHeaderFontSize, px: tableHeaderPaddingX }}>
                 Lot Number
@@ -212,7 +202,7 @@ const MainListTable = ({ data }) => {
                   {row.GLUE || ''}
                 </TableCell>
                 <TableCell sx={{ border: '1px solid #000', textAlign: 'center', py: tableDataPaddingY, fontSize: tableDataFontSize, px: tableDataPaddingX }}>
-                  {row.CLASS || ''}
+                  {row.TYPE || ''}
                 </TableCell>
                 <TableCell sx={{ border: '1px solid #000', textAlign: 'center', py: tableDataPaddingY, fontSize: tableDataFontSize, px: tableDataPaddingX }}>
                   {row.LOTNUMBER || ''}

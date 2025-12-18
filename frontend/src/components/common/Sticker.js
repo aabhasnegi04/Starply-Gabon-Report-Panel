@@ -4,22 +4,17 @@ import { Box, Typography} from '@mui/material';
 const Sticker = ({
   company, consignee, destination,
   length, width, thickness,
-  quality, pcs, species,
+  quality, pcs, cbm, species,
   glue, productClass, lotNumber, totalPallets, orderNo,
   certificates = []
 }) => {
-  // Get current date formatted
-  const currentDate = new Date().toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  });
+
 
   return (
     <Box sx={{
       width: '100%',
-      maxWidth: '210mm', // A4 width
-      p: '12mm',
+      maxWidth: { xs: '100%', sm: '210mm' }, // A4 width
+      p: { xs: '8px', sm: '12mm' },
       mx: 'auto',
       background: '#fff',
       position: 'relative',
@@ -27,17 +22,12 @@ const Sticker = ({
       flexDirection: 'column',
       boxSizing: 'border-box'
     }}>
-      {/* Date Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', mb: 2 }}>
-        <Typography sx={{ fontSize: '0.9rem', color: '#666', fontWeight: 500 }}>
-          {currentDate}
-        </Typography>
-      </Box>
+
 
       {/* Top Header - Company Info */}
       <Box sx={{ 
         display: 'grid', 
-        gridTemplateColumns: '1fr 1fr 1fr', 
+        gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' }, 
         gap: 2, 
         mb: 3,
         pb: 2,
@@ -100,7 +90,7 @@ const Sticker = ({
         </Box>
 
         {/* Quality and Pieces */}
-        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
           <Box sx={{ p: 1.5, border: '2px solid #e0e0e0', borderRadius: '4px' }}>
             <Typography sx={{ color: '#2e3192', fontWeight: 700, fontSize: '1.1rem', mb: 0.5, textTransform: 'uppercase' }}>
               QUALITY :
@@ -114,13 +104,13 @@ const Sticker = ({
               NOMBRE DE PIÈCES / CUBAGE (M³) :
             </Typography>
             <Typography sx={{ fontSize: '1.5rem', fontWeight: 600 }}>
-              {pcs || 'N/A'}
+              {pcs || 'N/A'} / {cbm || 'N/A'}
             </Typography>
           </Box>
         </Box>
 
         {/* Species, Glue/Class */}
-        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
           <Box sx={{ p: 1.5, border: '2px solid #e0e0e0', borderRadius: '4px' }}>
             <Typography sx={{ color: '#2e3192', fontWeight: 700, fontSize: '1.1rem', mb: 0.5, textTransform: 'uppercase' }}>
               ESSENCE :
@@ -140,7 +130,7 @@ const Sticker = ({
         </Box>
 
         {/* Palette Number and PO */}
-        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
           <Box sx={{ p: 1.5, border: '2px solid #e0e0e0', borderRadius: '4px' }}>
             <Typography sx={{ color: '#2e3192', fontWeight: 700, fontSize: '1.1rem', mb: 0.5, textTransform: 'uppercase' }}>
               NUMÉRO DE PALETTE :
