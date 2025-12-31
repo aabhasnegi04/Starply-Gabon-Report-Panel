@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getOrderListByDate, getOrderListByDeliveryDate, getPendingOrders, getPendingSubOrders, getCurrentMonthSummary, getDateWiseSummary } = require('../controllers/orderController');
+const { getOrderListByDate, getOrderListByDeliveryDate, getPendingOrders, getPendingSubOrders, getCurrentMonthSummary, getDateWiseSummary, getPlywoodDailyOperationsSummary, executeStoredProcedure } = require('../controllers/orderController');
 
 // POST /order/listbydate
 router.post('/listbydate', getOrderListByDate);
@@ -19,5 +19,11 @@ router.get('/currentmonthsummary', getCurrentMonthSummary);
 
 // POST /order/datewisesummary
 router.post('/datewisesummary', getDateWiseSummary);
+
+// POST /order/plywooddailyoperationssummary
+router.post('/plywooddailyoperationssummary', getPlywoodDailyOperationsSummary);
+
+// POST /order/execute - Generic stored procedure execution
+router.post('/execute', executeStoredProcedure);
 
 module.exports = router;

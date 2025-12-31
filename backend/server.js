@@ -68,6 +68,40 @@ app.get('/', (req, res) => {
   });
 });
 
+// Database health check endpoint
+app.get('/health/db', async (req, res) => {
+  try {
+    const { getConnection } = require('./db/connection');
+    const pool = await getConnection();
+    
+    if (!pool) {
+      return res.status(503).json({
+        success: false,
+        message: 'Database connection unavailable',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Test with a simple query
+    const result = await pool.request().query('SELECT 1 as test');
+    
+    res.json({
+      success: true,
+      message: 'Database connection healthy',
+      timestamp: new Date().toISOString(),
+      dbStatus: 'connected'
+    });
+  } catch (error) {
+    console.error('Database health check failed:', error);
+    res.status(503).json({
+      success: false,
+      message: 'Database health check failed',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // CORS test endpoint
 app.get('/test-cors', (req, res) => {
   res.json({ 

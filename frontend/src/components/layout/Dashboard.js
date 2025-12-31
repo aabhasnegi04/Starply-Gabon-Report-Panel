@@ -18,6 +18,11 @@ import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
 import SummarizeIcon from '@mui/icons-material/Summarize';
 import DateRangeIcon from '@mui/icons-material/DateRange';
+import PrecisionManufacturingIcon from '@mui/icons-material/PrecisionManufacturing';
+import ForestIcon from '@mui/icons-material/Forest';
+import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
+import ReceiptIcon from '@mui/icons-material/Receipt';
+import ContentCutIcon from '@mui/icons-material/ContentCut';
 import StickerView from '../container/StickerView';
 import PackingListView from '../container/PackingListView';
 import LoadListView from '../container/LoadListView';
@@ -28,6 +33,12 @@ import PendingOrdersView from '../orders/PendingOrdersView';
 import PendingSubOrdersView from '../orders/PendingSubOrdersView';
 import CurrentMonthSummaryView from '../summary/CurrentMonthSummaryView';
 import DateWiseSummaryView from '../summary/DateWiseSummaryView';
+import PlywoodDailyOperationsSummaryView from '../summary/PlywoodDailyOperationsSummaryView';
+import CurrentLogStockView from '../logs/CurrentLogStockView';
+import LogClosingStockView from '../logs/LogClosingStockView';
+import LogBuyingSummaryView from '../logs/LogBuyingSummaryView';
+import LogInvoiceSummaryView from '../logs/LogInvoiceSummaryView';
+import LogCuttingSummaryView from '../logs/LogCuttingSummaryView';
 
 const DRAWER_WIDTH = 260;
 
@@ -36,6 +47,7 @@ const Dashboard = ({ user, onLogout }) => {
   const [drawerOpen, setDrawerOpen] = useState(false); // Start closed on mobile
   const [logisticsOpen, setLogisticsOpen] = useState(true); // Start expanded
   const [summaryOpen, setSummaryOpen] = useState(false);
+  const [logsOpen, setLogsOpen] = useState(false);
 
   // Handle responsive drawer behavior
   useEffect(() => {
@@ -78,6 +90,18 @@ const Dashboard = ({ user, onLogout }) => {
       items: [
         { id: 'currentmonthsummary', label: 'Current Month Summary', icon: <SummarizeIcon /> },
         { id: 'datewisesummary', label: 'Date Wise Summary', icon: <DateRangeIcon /> },
+        { id: 'plywooddailyoperationssummary', label: 'Plywood Daily Operations Summary', icon: <PrecisionManufacturingIcon /> },
+      ]
+    },
+    {
+      heading: 'Logs',
+      key: 'logs',
+      items: [
+        { id: 'currentlogstock', label: 'Current Log Stock', icon: <ForestIcon /> },
+        { id: 'logclosingstock', label: 'Log Closing Stock - As On Date', icon: <InventoryIcon /> },
+        { id: 'logbuyingsummary', label: 'Log Buying Summary Month Wise', icon: <ShoppingCartIcon /> },
+        { id: 'loginvoicesummary', label: 'Log Invoice Summary', icon: <ReceiptIcon /> },
+        { id: 'logcuttingsummary', label: 'Log Cutting Summary', icon: <ContentCutIcon /> },
       ]
     }
   ];
@@ -117,6 +141,18 @@ const Dashboard = ({ user, onLogout }) => {
         return <CurrentMonthSummaryView />;
       case 'datewisesummary':
         return <DateWiseSummaryView />;
+      case 'plywooddailyoperationssummary':
+        return <PlywoodDailyOperationsSummaryView />;
+      case 'currentlogstock':
+        return <CurrentLogStockView />;
+      case 'logclosingstock':
+        return <LogClosingStockView />;
+      case 'logbuyingsummary':
+        return <LogBuyingSummaryView />;
+      case 'loginvoicesummary':
+        return <LogInvoiceSummaryView />;
+      case 'logcuttingsummary':
+        return <LogCuttingSummaryView />;
       default:
         return <StickerView />;
     }
@@ -162,8 +198,18 @@ const Dashboard = ({ user, onLogout }) => {
       {/* Menu Items */}
       <Box sx={{ pt: 2, px: { xs: 1, sm: 1.5 }, flexGrow: 1 }}>
         {menuSections.map((section, sectionIndex) => {
-          const isOpen = section.key === 'logistics' ? logisticsOpen : summaryOpen;
-          const setOpen = section.key === 'logistics' ? setLogisticsOpen : setSummaryOpen;
+          let isOpen, setOpen;
+          
+          if (section.key === 'logistics') {
+            isOpen = logisticsOpen;
+            setOpen = setLogisticsOpen;
+          } else if (section.key === 'summary') {
+            isOpen = summaryOpen;
+            setOpen = setSummaryOpen;
+          } else if (section.key === 'logs') {
+            isOpen = logsOpen;
+            setOpen = setLogsOpen;
+          }
           
           return (
             <Box key={sectionIndex} sx={{ mb: 2 }}>

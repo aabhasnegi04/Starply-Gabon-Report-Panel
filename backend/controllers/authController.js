@@ -1,4 +1,4 @@
-const { poolPromise, sql } = require('../db/connection');
+const { poolPromise, sql, getConnection } = require('../db/connection');
 
 async function login(req, res) {
   const { username, password } = req.body;
@@ -11,7 +11,16 @@ async function login(req, res) {
   }
 
   try {
-    const pool = await poolPromise;
+    // Use getConnection for better error handling
+    const pool = await getConnection();
+    
+    if (!pool) {
+      return res.status(503).json({ 
+        success: false, 
+        message: 'Database service unavailable. Please try again later.' 
+      });
+    }
+
     const result = await pool.request()
       .input('username', sql.VarChar(50), username)
       .input('password', sql.VarChar(100), password)
@@ -43,10 +52,20 @@ async function login(req, res) {
     });
   } catch (err) {
     console.error('Login error:', err);
+    
+    // Check if it's a connection error
+    if (err.message.includes('connection') || err.message.includes('timeout')) {
+      return res.status(503).json({ 
+        success: false, 
+        message: 'Database connection error. Please try again later.',
+        error: process.env.NODE_ENV === 'development' ? err.message : undefined
+      });
+    }
+    
     res.status(500).json({ 
       success: false, 
       message: 'Server error', 
-      error: err.message 
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined
     });
   }
 }

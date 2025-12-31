@@ -379,7 +379,7 @@ const MainListView = () => {
                     py: 1,
                     minWidth: { xs: '100px', sm: '120px' }
                   }}>
-                    Type of Glue
+                    Glue
                   </TableCell>
                   <TableCell sx={{ 
                     fontWeight: 700, 

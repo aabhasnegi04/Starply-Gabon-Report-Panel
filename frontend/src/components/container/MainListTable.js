@@ -152,7 +152,7 @@ const MainListTable = ({ data }) => {
                 Species
               </TableCell>
               <TableCell sx={{ border: '1px solid #000', fontWeight: 700, textAlign: 'center', py: tableHeaderPaddingY, fontSize: tableHeaderFontSize, px: tableHeaderPaddingX }}>
-                Type of Glue
+                Glue
               </TableCell>
               <TableCell sx={{ border: '1px solid #000', fontWeight: 700, textAlign: 'center', py: tableHeaderPaddingY, fontSize: tableHeaderFontSize, px: tableHeaderPaddingX }}>
                 Type
