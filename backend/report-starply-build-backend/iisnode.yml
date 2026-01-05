@@ -1,0 +1,27 @@
+# iisnode configuration for production
+
+# Enable logging
+loggingEnabled: true
+devErrorsEnabled: true
+debuggingEnabled: false
+
+# Log directory (relative to app root)
+logDirectory: iisnode
+
+# Node.js command line arguments
+nodeProcessCommandLine: "C:\Program Files\nodejs\node.exe"
+
+# Number of node processes
+nodeProcessCountPerApplication: 1
+
+# Max concurrent requests per process
+maxConcurrentRequestsPerProcess: 1024
+
+# Max request size (in bytes)
+maxRequestLength: 2097152
+
+# Watched files that trigger app restart
+watchedFiles: *.js;iisnode.yml;web.config
+
+# Environment
+node_env: production

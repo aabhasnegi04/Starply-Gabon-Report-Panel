@@ -64,16 +64,18 @@ const PackingListTable = ({ data }) => {
   const totalWeight = workOrderInfo?.Poids_Net || '22500';
   const totalQuantity = packingRows.reduce((sum, row) => sum + (parseInt(row.PCS) || 0), 0);
 
-  // Dynamic scaling based on row count - prioritize readability
+  // Dynamic scaling based on row count - balanced approach to utilize page space
   const rowCount = packingRows.length;
   
   const getOptimalScale = () => {
-    if (rowCount <= 12) return 1.0;
-    if (rowCount <= 16) return 0.95;  // Less aggressive scaling
-    if (rowCount <= 20) return 0.9;
-    if (rowCount <= 25) return 0.85;
-    if (rowCount <= 32) return 0.8;   // Less aggressive for 32 rows
-    return 0.75;
+    if (rowCount <= 15) return 1.0;
+    if (rowCount <= 20) return 0.92;
+    if (rowCount <= 25) return 0.87;
+    if (rowCount <= 30) return 0.82;
+    if (rowCount <= 35) return 0.78;
+    if (rowCount <= 40) return 0.74;
+    if (rowCount <= 45) return 0.71;
+    return 0.68; // For very large containers
   };
 
   const scaleFactor = getOptimalScale();
@@ -81,38 +83,54 @@ const PackingListTable = ({ data }) => {
     return Math.max(baseValue * scaleFactor, minValue);
   };
 
-  // Padding and margins - optimized to use available space
   const getPadding = () => {
-    if (rowCount <= 10) return '10mm 8mm';
     if (rowCount <= 15) return '8mm 6mm';
-    if (rowCount <= 20) return '6mm 4mm';
-    if (rowCount <= 25) return '4mm 3mm';
-    return '3mm 2mm';
+    if (rowCount <= 20) return '7mm 5mm';
+    if (rowCount <= 25) return '6mm 4.5mm';
+    if (rowCount <= 30) return '5.5mm 4mm';
+    if (rowCount <= 35) return '5mm 3.5mm';
+    if (rowCount <= 40) return '4.5mm 3mm';
+    return '4mm 2.5mm'; // Balanced for large containers
   };
 
   const containerPadding = getPadding();
   
-  // Font sizes - optimized to use available space
-  const titleFontSize = `${getScaledValue(1.8, 1.4)}rem`;
-  const headerFontSize = `${getScaledValue(1.0, 0.85)}rem`;  // Larger
-  const tableHeaderFontSize = `${getScaledValue(0.9, 0.8)}rem`;  // Larger
-  const tableDataFontSize = `${getScaledValue(0.85, 0.75)}rem`;    // Larger but still fits
+  const getSectionMargin = () => {
+    if (rowCount <= 15) return 0.8;
+    if (rowCount <= 20) return 0.7;
+    if (rowCount <= 25) return 0.62;
+    if (rowCount <= 30) return 0.55;
+    if (rowCount <= 35) return 0.5;
+    if (rowCount <= 40) return 0.45;
+    return 0.4; // Balanced margins for large containers
+  };
+
+  const sectionMargin = getSectionMargin();
   
-  // Cell padding - balanced to use space efficiently
+  // Font sizes - balanced middle ground
+  const titleFontSize = `${getScaledValue(1.7, 1.15)}rem`;
+  const headerFontSize = `${getScaledValue(0.95, 0.77)}rem`;
+  const tableHeaderFontSize = `${getScaledValue(0.87, 0.72)}rem`;
+  const tableDataFontSize = `${getScaledValue(0.82, 0.67)}rem`;
+  
   const getTableHeaderPaddingY = () => {
-    if (rowCount <= 10) return 0.7;
     if (rowCount <= 15) return 0.6;
-    if (rowCount <= 20) return 0.5;
-    if (rowCount <= 25) return 0.4;
-    return 0.3;
+    if (rowCount <= 20) return 0.52;
+    if (rowCount <= 25) return 0.46;
+    if (rowCount <= 30) return 0.41;
+    if (rowCount <= 35) return 0.37;
+    if (rowCount <= 40) return 0.33;
+    return 0.3; // Balanced padding for large containers
   };
   
   const getTableDataPaddingY = () => {
-    if (rowCount <= 10) return 0.6;
     if (rowCount <= 15) return 0.5;
-    if (rowCount <= 20) return 0.4;
-    if (rowCount <= 25) return 0.35;
-    return 0.25;
+    if (rowCount <= 20) return 0.42;
+    if (rowCount <= 25) return 0.36;
+    if (rowCount <= 30) return 0.32;
+    if (rowCount <= 35) return 0.28;
+    if (rowCount <= 40) return 0.25;
+    return 0.22; // Balanced padding for large containers
   };
 
   const tableHeaderPaddingY = getTableHeaderPaddingY();
@@ -152,7 +170,7 @@ const PackingListTable = ({ data }) => {
         }}
       />
       {/* Title - Centered */}
-      <Box sx={{ textAlign: 'center', mb: 1 }}>
+      <Box sx={{ textAlign: 'center', mb: sectionMargin * 0.5 }}>
         <Typography sx={{ 
           fontSize: titleFontSize, 
           fontWeight: 700, 
@@ -166,22 +184,22 @@ const PackingListTable = ({ data }) => {
       </Box>
 
       {/* Consignee Section - Now shown first */}
-      <Box sx={{ mb: 0.8 }}>
-        <Typography sx={{ fontSize: headerFontSize, fontWeight: 700, mb: 0.3, lineHeight: 1.2 }}>
+      <Box sx={{ mb: sectionMargin }}>
+        <Typography sx={{ fontSize: headerFontSize, fontWeight: 700, mb: sectionMargin * 0.3, lineHeight: 1.2 }}>
           Consignee (Destinataire):
         </Typography>
         {consigneeName && (
-          <Typography sx={{ fontSize: headerFontSize, mb: 0.25, lineHeight: 1.2 }}>
+          <Typography sx={{ fontSize: headerFontSize, mb: sectionMargin * 0.25, lineHeight: 1.2 }}>
             {consigneeName}
           </Typography>
         )}
-        {notifyParty && (
-          <Typography sx={{ fontSize: headerFontSize, mb: 0.25, lineHeight: 1.2 }}>
-            P/C: {notifyParty}
+        {workOrderInfo?.Client_Name && (
+          <Typography sx={{ fontSize: headerFontSize, mb: sectionMargin * 0.25, lineHeight: 1.2 }}>
+            P/C : {workOrderInfo.Client_Name}
           </Typography>
         )}
         {consigneeAddress && (
-          <Typography sx={{ fontSize: headerFontSize, mb: 0.25, lineHeight: 1.2 }}>
+          <Typography sx={{ fontSize: headerFontSize, mb: sectionMargin * 0.25, lineHeight: 1.2 }}>
             {consigneeAddress}
           </Typography>
         )}
@@ -194,21 +212,21 @@ const PackingListTable = ({ data }) => {
           Source d'approvisionnement: CFAD {originData?.ORIGIN || 'HAUT-ABANGA'} - UFA-UFG1 {originData?.AAC || 'ACC1422'}
         </Typography>
         {isFSC && (
-          <Typography sx={{ fontSize: headerFontSize, lineHeight: 1.2, mt: 0.25 }}>
+          <Typography sx={{ fontSize: headerFontSize, lineHeight: 1.2, mt: sectionMargin * 0.25 }}>
             <strong>LEVEL CERTIFICATION: FSC 100%</strong>
           </Typography>
         )}
       </Box>
 
       {/* Exporter Section - Now shown second */}
-      <Box sx={{ mb: 0.8 }}>
-        <Typography sx={{ fontSize: headerFontSize, fontWeight: 700, mb: 0.3, lineHeight: 1.2 }}>
+      <Box sx={{ mb: sectionMargin }}>
+        <Typography sx={{ fontSize: headerFontSize, fontWeight: 700, mb: sectionMargin * 0.3, lineHeight: 1.2 }}>
           Exporter:
         </Typography>
-        <Typography sx={{ fontSize: headerFontSize, mb: 0.25, lineHeight: 1.2 }}>
+        <Typography sx={{ fontSize: headerFontSize, mb: sectionMargin * 0.25, lineHeight: 1.2 }}>
           {exporterName}
         </Typography>
-        <Typography sx={{ fontSize: headerFontSize, mb: 0.25, lineHeight: 1.2 }}>
+        <Typography sx={{ fontSize: headerFontSize, mb: sectionMargin * 0.25, lineHeight: 1.2 }}>
           {exporterAddress}
         </Typography>
         <Typography sx={{ fontSize: headerFontSize, lineHeight: 1.2 }}>
@@ -217,7 +235,7 @@ const PackingListTable = ({ data }) => {
       </Box>
 
       {/* Shipment Details - 2 column grid matching exact format */}
-      <Box sx={{ mb: 0.8, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem', rowGap: '0.25rem' }}>
+      <Box sx={{ mb: sectionMargin, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem', rowGap: `${sectionMargin * 0.25}rem` }}>
         <Typography sx={{ fontSize: headerFontSize, lineHeight: 1.2 }}>
           <strong>Date:</strong> {loadingDate}
         </Typography>
@@ -242,7 +260,7 @@ const PackingListTable = ({ data }) => {
       </Box>
 
       {/* Container and Seal Info - Displayed above table */}
-      <Box sx={{ mb: 0.6, display: 'flex', gap: 2 }}>
+      <Box sx={{ mb: sectionMargin * 0.75, display: 'flex', gap: 2 }}>
         {containerNo && (
           <Typography sx={{ fontSize: headerFontSize, lineHeight: 1.2 }}>
             <strong>Conteneur:</strong> {containerNo}
@@ -256,7 +274,7 @@ const PackingListTable = ({ data }) => {
       </Box>
 
       {/* Table - PALLET NO. first, then Description, Quantité, Metre Cube */}
-      <TableContainer component={Paper} sx={{ boxShadow: 'none', border: '1px solid #000', width: '100%', mb: 0.8 }}>
+      <TableContainer component={Paper} sx={{ boxShadow: 'none', border: '1px solid #000', width: '100%', mb: sectionMargin }}>
         <Table sx={{ borderCollapse: 'collapse', width: '100%' }} size="small">
           <TableHead>
             <TableRow sx={{ backgroundColor: '#ffb74d' }}>
@@ -308,22 +326,22 @@ const PackingListTable = ({ data }) => {
       </TableContainer>
 
       {/* Summary Section - 40-60 Layout */}
-      <Box sx={{ mt: 0.8, display: 'flex', gap: 0, width: '100%' }}>
+      <Box sx={{ mt: sectionMargin, display: 'flex', gap: 0, width: '100%' }}>
         {/* Left Side - 40% - Summary Text */}
         <Box sx={{ 
           flex: '0 0 40%',
           pr: 1
         }}>
-          <Typography sx={{ fontSize: headerFontSize, mb: 0.3, lineHeight: 1.2 }}>
+          <Typography sx={{ fontSize: headerFontSize, mb: sectionMargin * 0.3, lineHeight: 1.2 }}>
             <strong>Note:</strong> Pour Industrie DuBois
           </Typography>
-          <Typography sx={{ fontSize: headerFontSize, mb: 0.25, lineHeight: 1.2 }}>
+          <Typography sx={{ fontSize: headerFontSize, mb: sectionMargin * 0.25, lineHeight: 1.2 }}>
             <strong>TOTAL {totalPallets} PACKAGE</strong>
           </Typography>
-          <Typography sx={{ fontSize: headerFontSize, mb: 0.25, lineHeight: 1.2 }}>
+          <Typography sx={{ fontSize: headerFontSize, mb: sectionMargin * 0.25, lineHeight: 1.2 }}>
             <strong>Total Quantité:</strong> {totalQuantity} PCS
           </Typography>
-          <Typography sx={{ fontSize: headerFontSize, mb: 0.25, lineHeight: 1.2 }}>
+          <Typography sx={{ fontSize: headerFontSize, mb: sectionMargin * 0.25, lineHeight: 1.2 }}>
             <strong>Total Metre Cube:</strong> {totalCBM.toFixed(3)}
           </Typography>
           <Typography sx={{ fontSize: headerFontSize, lineHeight: 1.2 }}>
@@ -461,8 +479,8 @@ const PackingListTable = ({ data }) => {
 
       {/* Company Contact Box - Moved to bottom */}
       <Box sx={{ 
-        mt: 1, 
-        p: 0.8, 
+        mt: sectionMargin, 
+        p: sectionMargin * 0.8, 
         border: '2px solid #000', 
         borderRadius: 0,
         display: 'flex',
@@ -470,10 +488,10 @@ const PackingListTable = ({ data }) => {
         gap: 1
       }}>
         <Box>
-          <Typography sx={{ fontSize: headerFontSize, fontWeight: 700, mb: 0.25, lineHeight: 1.2 }}>
+          <Typography sx={{ fontSize: headerFontSize, fontWeight: 700, mb: sectionMargin * 0.25, lineHeight: 1.2 }}>
             {exporterName}
           </Typography>
-          <Typography sx={{ fontSize: headerFontSize, mb: 0.25, lineHeight: 1.2 }}>
+          <Typography sx={{ fontSize: headerFontSize, mb: sectionMargin * 0.25, lineHeight: 1.2 }}>
             {exporterAddress.split(',')[0]}
           </Typography>
           <Typography sx={{ fontSize: headerFontSize, lineHeight: 1.2 }}>

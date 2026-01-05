@@ -2,15 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { 
   Container, Card, CardContent, Typography, Button, Box, 
   CircularProgress, Alert, Table, TableBody, TableCell, TableContainer, 
-  TableHead, TableRow, Chip, Tabs, Tab
+  TableHead, TableRow, Chip, Tabs, Tab, IconButton
 } from '@mui/material';
 import DownloadIcon from '@mui/icons-material/Download';
 import PendingActionsIcon from '@mui/icons-material/PendingActions';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import * as XLSX from 'xlsx';
 import { API_URL } from '../../config';
 
-const PendingOrdersView = () => {
+const PendingOrdersView = ({ onBackClick }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [data, setData] = useState(null);

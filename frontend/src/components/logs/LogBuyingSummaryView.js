@@ -3,7 +3,7 @@ import {
   Container, Card, CardContent, Typography, Button, Box, 
   CircularProgress, Alert, Table, TableBody, TableCell, TableContainer, 
   TableHead, TableRow, Chip, Select, MenuItem, FormControl, InputLabel,
-  Grid, Paper
+  Grid, Paper, IconButton
 } from '@mui/material';
 import DownloadIcon from '@mui/icons-material/Download';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
@@ -12,6 +12,7 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -40,7 +41,7 @@ ChartJS.register(
   ArcElement
 );
 
-const LogBuyingSummaryView = () => {
+const LogBuyingSummaryView = ({ onBackClick }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [data, setData] = useState(null);
@@ -223,6 +224,18 @@ const LogBuyingSummaryView = () => {
       }}>
         <CardContent sx={{ p: 4 }}>
           <Box display="flex" alignItems="center" mb={3}>
+            {onBackClick && (
+              <IconButton 
+                onClick={onBackClick}
+                sx={{ 
+                  mr: 2, 
+                  color: '#1b4332',
+                  '&:hover': { backgroundColor: '#f5f5f5' }
+                }}
+              >
+                <ArrowBackIcon />
+              </IconButton>
+            )}
             <Box sx={{ 
               background: 'linear-gradient(135deg, #1b4332 0%, #2d6a4f 100%)',
               borderRadius: 2,

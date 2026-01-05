@@ -1,15 +1,16 @@
 import React, { useState, useRef } from 'react';
-import { TextField, Button, Container, Box, Card, CardContent, CircularProgress, Alert, Typography } from '@mui/material';
+import { TextField, Button, Container, Box, Card, CardContent, CircularProgress, Alert, Typography, IconButton } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import PrintIcon from '@mui/icons-material/Print';
 import DownloadIcon from '@mui/icons-material/Download';
 import InventoryIcon from '@mui/icons-material/Inventory';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useReactToPrint } from 'react-to-print';
 import * as XLSX from 'xlsx';
 import Sticker from '../common/Sticker';
 import { API_URL } from '../../config';
 
-const StickerView = () => {
+const StickerView = ({ onBackClick }) => {
   const [container, setContainer] = useState('');
   const [stickers, setStickers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -137,6 +138,18 @@ const StickerView = () => {
       }} className="print-hide">
         <CardContent sx={{ p: 4 }}>
           <Box display="flex" alignItems="center" mb={3}>
+            {onBackClick && (
+              <IconButton 
+                onClick={onBackClick}
+                sx={{ 
+                  mr: 2, 
+                  color: '#1b4332',
+                  '&:hover': { backgroundColor: '#f5f5f5' }
+                }}
+              >
+                <ArrowBackIcon />
+              </IconButton>
+            )}
             <SearchIcon sx={{ fontSize: 28, color: '#1b4332', mr: 2 }} />
             <Typography variant="h4" sx={{ fontWeight: 600, color: '#1b4332', letterSpacing: '-0.5px' }}>
               Sticker Container Search

@@ -2,15 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { 
   Container, Card, CardContent, Typography, Button, Box, 
   CircularProgress, Alert, Table, TableBody, TableCell, TableContainer, 
-  TableHead, TableRow, Chip
+  TableHead, TableRow, Chip, IconButton
 } from '@mui/material';
 import DownloadIcon from '@mui/icons-material/Download';
 import SummarizeIcon from '@mui/icons-material/Summarize';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import * as XLSX from 'xlsx';
 import { API_URL } from '../../config';
 
-const CurrentMonthSummaryView = () => {
+const CurrentMonthSummaryView = ({ onBackClick }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [data, setData] = useState(null);
@@ -89,6 +90,18 @@ const CurrentMonthSummaryView = () => {
         <CardContent sx={{ p: 4 }}>
           <Box display="flex" flexDirection={{ xs: 'column', md: 'row' }} alignItems={{ xs: 'stretch', md: 'center' }} justifyContent="space-between" gap={2}>
             <Box display="flex" alignItems="center">
+              {onBackClick && (
+                <IconButton 
+                  onClick={onBackClick}
+                  sx={{ 
+                    mr: 2, 
+                    color: '#1b4332',
+                    '&:hover': { backgroundColor: '#f5f5f5' }
+                  }}
+                >
+                  <ArrowBackIcon />
+                </IconButton>
+              )}
               <Box sx={{ 
                 background: 'linear-gradient(135deg, #1b4332 0%, #2d6a4f 100%)',
                 borderRadius: 2,

@@ -2,20 +2,16 @@ import React, { useState } from 'react';
 import { 
   Container, Card, CardContent, Typography, Button, Box, 
   CircularProgress, Alert, Table, TableBody, TableCell, TableContainer, 
-  TableHead, TableRow, Chip, Grid, Paper, Tabs, Tab
+  TableHead, TableRow, Grid, IconButton, Tabs, Tab
 } from '@mui/material';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import DownloadIcon from '@mui/icons-material/Download';
-import ForestIcon from '@mui/icons-material/Forest';
+import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import SearchIcon from '@mui/icons-material/Search';
-import InventoryIcon from '@mui/icons-material/Inventory';
 import BusinessIcon from '@mui/icons-material/Business';
-import LocationOnIcon from '@mui/icons-material/LocationOn';
-import VerifiedIcon from '@mui/icons-material/Verified';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import TrendingDownIcon from '@mui/icons-material/TrendingDown';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import IconButton from '@mui/material/IconButton';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -28,10 +24,9 @@ import {
   Legend,
   ArcElement,
 } from 'chart.js';
-import { Bar, Doughnut, Pie } from 'react-chartjs-2';
+import { Bar, Line, Doughnut } from 'react-chartjs-2';
 import * as XLSX from 'xlsx';
 import { API_URL } from '../../config';
-import dayjs from 'dayjs';
 
 ChartJS.register(
   CategoryScale,
@@ -65,11 +60,10 @@ function TabPanel(props) {
   );
 }
 
-const LogClosingStockView = ({ onBackClick }) => {
+const ContainerLoadingView = ({ onBackClick }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [data, setData] = useState(null);
-  const [asOnDate, setAsOnDate] = useState(null);
   const [tabValue, setTabValue] = useState(0);
 
   const handleTabChange = (event, newValue) => {
@@ -81,42 +75,39 @@ const LogClosingStockView = ({ onBackClick }) => {
 
     const wb = XLSX.utils.book_new();
 
-    // Create sheets for each dataset
-    const sheetNames = [
-      'Forest & Quality Summary',
-      'Forest Summary', 
-      'Forest & Origin Summary',
-      'Forest & AAC Summary',
-      'Forest Origin Loading Summary',
-      'Company & Certificate Summary',
-      'Detailed Data'
-    ];
+    // Client Summary Sheet
+    if (data[0] && data[0].length > 0) {
+      const clientSummaryData = data[0].map(item => ({
+        'Client Name': item.Client_Name || '',
+        'MTD Containers': item.MTD_CONTAINER || 0,
+        'Previous Month Containers': item.PREVMONTH_CONTAINER || 0,
+        'Growth': (item.MTD_CONTAINER || 0) - (item.PREVMONTH_CONTAINER || 0),
+        'Growth %': item.PREVMONTH_CONTAINER > 0 
+          ? (((item.MTD_CONTAINER || 0) - (item.PREVMONTH_CONTAINER || 0)) / item.PREVMONTH_CONTAINER * 100).toFixed(2) + '%'
+          : 'N/A'
+      }));
+      
+      const clientSheet = XLSX.utils.json_to_sheet(clientSummaryData);
+      XLSX.utils.book_append_sheet(wb, clientSheet, 'Client Summary');
+    }
 
-    data.forEach((dataset, index) => {
-      if (dataset && dataset.length > 0) {
-        const sheetData = dataset.map(item => {
-          const cleanItem = {};
-          Object.keys(item).forEach(key => {
-            cleanItem[key] = item[key] || '';
-          });
-          return cleanItem;
-        });
-        
-        const sheet = XLSX.utils.json_to_sheet(sheetData);
-        XLSX.utils.book_append_sheet(wb, sheet, sheetNames[index] || `Sheet ${index + 1}`);
-      }
-    });
+    // Monthly Loading Sheet
+    if (data[1] && data[1].length > 0) {
+      const monthlyData = data[1].map(item => ({
+        'Loading Month': item.LOADING_MONTH || '',
+        'Month': item.MONTHS || '',
+        'Container Count': item.NO_OF_CONTAINER_2025 || 0
+      }));
+      
+      const monthlySheet = XLSX.utils.json_to_sheet(monthlyData);
+      XLSX.utils.book_append_sheet(wb, monthlySheet, 'Monthly Loading');
+    }
 
-    const dateStr = asOnDate ? asOnDate.format('YYYY-MM-DD') : 'current';
-    XLSX.writeFile(wb, `Log_Closing_Stock_${dateStr}.xlsx`);
+    const dateStr = new Date().toISOString().split('T')[0];
+    XLSX.writeFile(wb, `Container_Loading_Client_Wise_${dateStr}.xlsx`);
   };
 
   const fetchData = async () => {
-    if (!asOnDate) {
-      setError('Please select As On Date');
-      return;
-    }
-
     setLoading(true);
     setError('');
     setData(null);
@@ -127,10 +118,8 @@ const LogClosingStockView = ({ onBackClick }) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          procedure: 'proc_rp_logstocknotcuttedX2',
-          parameters: {
-            dateofstk: asOnDate.format('YYYY-MM-DD')
-          }
+          procedure: 'proc_get_summary_container',
+          parameters: {}
         })
       });
       
@@ -138,7 +127,7 @@ const LogClosingStockView = ({ onBackClick }) => {
       const apiData = await res.json();
 
       if (!apiData.data || apiData.data.length === 0) {
-        setError('No data found for the selected date.');
+        setError('No container loading data found.');
         return;
       }
 
@@ -150,30 +139,38 @@ const LogClosingStockView = ({ onBackClick }) => {
     }
   };
 
+  const formatNumber = (num) => {
+    if (num === null || num === undefined) return '0';
+    return parseFloat(num).toLocaleString('en-IN');
+  };
+
   // Calculate summary statistics
   const calculateSummaryStats = (data) => {
     if (!data || data.length === 0) return null;
 
-    // Use the detailed data (last recordset) for calculations
-    const detailedData = data[data.length - 1] || [];
+    const clientData = data[0] || [];
+    const monthlyData = data[1] || [];
+
+    const totalMTDContainers = clientData.reduce((sum, item) => sum + (parseFloat(item.MTD_CONTAINER) || 0), 0);
+    const totalPrevMonthContainers = clientData.reduce((sum, item) => sum + (parseFloat(item.PREVMONTH_CONTAINER) || 0), 0);
+    const totalYearlyContainers = monthlyData.reduce((sum, item) => sum + (parseFloat(item.NO_OF_CONTAINER_2025) || 0), 0);
     
-    const totalLogs = detailedData.length;
-    const totalBordereauCBM = detailedData.reduce((sum, item) => sum + (parseFloat(item.CBM_BORDEREAU) || 0), 0);
-    const totalActualCBM = detailedData.reduce((sum, item) => sum + (parseFloat(item.BORD_ACTUAL_CBM) || 0), 0);
-    
-    // Count unique forests, companies, qualities
-    const uniqueForests = [...new Set(detailedData.map(item => item.FOREST).filter(Boolean))].length;
-    const uniqueCompanies = [...new Set(detailedData.map(item => item.COMPANY).filter(Boolean))].length;
-    const uniqueQualities = [...new Set(detailedData.map(item => item.QUALITY).filter(Boolean))].length;
+    const growthContainers = totalMTDContainers - totalPrevMonthContainers;
+    const growthPercentage = totalPrevMonthContainers > 0 
+      ? ((growthContainers / totalPrevMonthContainers) * 100) 
+      : 0;
+
+    const activeClients = clientData.filter(item => (parseFloat(item.MTD_CONTAINER) || 0) > 0).length;
+    const totalClients = clientData.length;
 
     return {
-      totalLogs,
-      totalBordereauCBM,
-      totalActualCBM,
-      uniqueForests,
-      uniqueCompanies,
-      uniqueQualities,
-      variance: totalActualCBM - totalBordereauCBM
+      totalMTDContainers,
+      totalPrevMonthContainers,
+      totalYearlyContainers,
+      growthContainers,
+      growthPercentage,
+      activeClients,
+      totalClients
     };
   };
 
@@ -181,72 +178,60 @@ const LogClosingStockView = ({ onBackClick }) => {
   const prepareChartData = (data) => {
     if (!data || data.length === 0) return null;
 
-    // Forest & Quality Summary (first recordset)
-    const forestQualityData = data[0] || [];
-    const forestData = data[1] || [];
-    const companyData = data[5] || [];
+    const clientData = data[0] || [];
+    const monthlyData = data[1] || [];
 
-    // Filter out grand total rows for charts
-    const filteredForestQuality = forestQualityData.filter(item => 
-      item.FOREST && item.FOREST !== 'GRAND TOTAL' && item.FOREST.trim() !== 'GRAND TOTAL'
-    );
-    
-    const filteredForest = forestData.filter(item => 
-      item.FOREST && item.FOREST !== 'GRAND TOTAL' && item.FOREST.trim() !== 'GRAND TOTAL'
-    );
+    // Sort clients by MTD containers (top 10)
+    const sortedClients = [...clientData]
+      .sort((a, b) => (parseFloat(b.MTD_CONTAINER) || 0) - (parseFloat(a.MTD_CONTAINER) || 0))
+      .slice(0, 10);
 
-    const filteredCompany = companyData.filter(item => 
-      item.COMPANY && item.COMPANY !== 'GRAND TOTAL' && item.COMPANY.trim() !== 'GRAND TOTAL'
-    );
+    // Sort monthly data by month order
+    const monthOrder = {
+      'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'Jun': 6,
+      'Jul': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12
+    };
 
-    // Calculate FSC vs Non-FSC distribution
-    let fscCount = 0;
-    let nonFscCount = 0;
-
-    filteredCompany.forEach(item => {
-      const logCount = parseFloat(item.LOG_COUNT) || 0;
-      const certificate = (item.CERTIFICATE || '').toString().trim().toUpperCase();
-      
-      // More specific FSC detection - only if it explicitly says "FSC 100%" or similar
-      if (certificate === 'FSC 100%' || certificate === 'FSC100%' || certificate === 'FSC-100%') {
-        fscCount += logCount;
-      } else {
-        nonFscCount += logCount;
-      }
+    const sortedMonthlyData = [...monthlyData].sort((a, b) => {
+      const monthA = monthOrder[a.MONTHS] || 13;
+      const monthB = monthOrder[b.MONTHS] || 13;
+      return monthA - monthB;
     });
 
+    // Client performance categories
+    const growthClients = clientData.filter(item => 
+      (parseFloat(item.MTD_CONTAINER) || 0) > (parseFloat(item.PREVMONTH_CONTAINER) || 0)
+    ).length;
+    
+    const declineClients = clientData.filter(item => 
+      (parseFloat(item.MTD_CONTAINER) || 0) < (parseFloat(item.PREVMONTH_CONTAINER) || 0)
+    ).length;
+    
+    const stableClients = clientData.filter(item => 
+      (parseFloat(item.MTD_CONTAINER) || 0) === (parseFloat(item.PREVMONTH_CONTAINER) || 0)
+    ).length;
+
     return {
-      forestQuality: {
-        labels: filteredForestQuality.map(item => `${item.FOREST} - ${item.QUALITY || 'N/A'}`),
-        logCounts: filteredForestQuality.map(item => parseFloat(item.LOG_COUNT) || 0),
-        bordereauCBM: filteredForestQuality.map(item => parseFloat(item.CBM_BORDEREAU) || 0),
-        actualCBM: filteredForestQuality.map(item => parseFloat(item.BORD_ACTUAL_CBM) || 0)
+      topClients: {
+        labels: sortedClients.map(item => item.Client_Name || 'Unknown'),
+        mtdData: sortedClients.map(item => parseFloat(item.MTD_CONTAINER) || 0),
+        prevData: sortedClients.map(item => parseFloat(item.PREVMONTH_CONTAINER) || 0)
       },
-      forest: {
-        labels: filteredForest.map(item => item.FOREST),
-        logCounts: filteredForest.map(item => parseFloat(item.LOG_COUNT) || 0),
-        bordereauCBM: filteredForest.map(item => parseFloat(item.CBM_BORDEREAU) || 0),
-        actualCBM: filteredForest.map(item => parseFloat(item.BORD_ACTUAL_CBM) || 0)
+      monthlyTrend: {
+        labels: sortedMonthlyData.map(item => item.MONTHS || ''),
+        data: sortedMonthlyData.map(item => parseFloat(item.NO_OF_CONTAINER_2025) || 0)
       },
-      fscDistribution: {
-        labels: ['FSC 100%', 'Non-FSC'],
-        logCounts: [fscCount, nonFscCount]
+      clientPerformance: {
+        labels: ['Growth', 'Decline', 'Stable'],
+        data: [growthClients, declineClients, stableClients]
       }
     };
   };
 
-  const formatNumber = (num) => {
-    if (num === null || num === undefined) return '0';
-    return parseFloat(num).toLocaleString('en-IN', { 
-      minimumFractionDigits: 2, 
-      maximumFractionDigits: 2 
-    });
-  };
-
   // Get responsive values
   const isMobile = window.innerWidth < 768;
-  const barThickness = isMobile ? 40 : undefined;
-  const maxBarThickness = isMobile ? 60 : 50;
+  const barThickness = isMobile ? 25 : undefined;
+  const maxBarThickness = isMobile ? 40 : 50;
   const fontSize = isMobile ? 10 : 12;
   const tickFontSize = isMobile ? 9 : 11;
 
@@ -286,74 +271,46 @@ const LogClosingStockView = ({ onBackClick }) => {
               alignItems: 'center',
               justifyContent: 'center'
             }}>
-              <InventoryIcon sx={{ fontSize: 28, color: '#ffffff' }} />
+              <LocalShippingIcon sx={{ fontSize: 28, color: '#ffffff' }} />
             </Box>
             <Box>
               <Typography variant="h4" sx={{ fontWeight: 700, color: '#1b4332', letterSpacing: '-0.5px' }}>
-                Log Closing Stock - As On Date
+                Container Loading - Client Wise
               </Typography>
               <Typography variant="body2" sx={{ color: '#666', mt: 0.5 }}>
-                Log inventory status as on selected date
+                Client-wise container loading summary and trends
               </Typography>
             </Box>
           </Box>
 
-          {/* Date Filter */}
-          <LocalizationProvider dateAdapter={AdapterDayjs}>
-            <Box display="flex" flexDirection={{ xs: 'column', md: 'row' }} gap={2} alignItems="stretch">
-              <DatePicker
-                label="As On Date"
-                value={asOnDate}
-                onChange={(newValue) => setAsOnDate(newValue)}
-                maxDate={dayjs()}
-                slotProps={{
-                  textField: {
-                    fullWidth: true,
-                    sx: {
-                      flex: 1,
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: 2,
-                        backgroundColor: '#fff',
-                        '&:hover fieldset': {
-                          borderColor: '#1b4332',
-                        },
-                        '&.Mui-focused fieldset': {
-                          borderColor: '#1b4332',
-                          borderWidth: '2px',
-                        },
-                      },
-                    }
-                  }
-                }}
-              />
-              <Button
-                variant="contained"
-                size="large"
-                startIcon={<SearchIcon />}
-                onClick={fetchData}
-                disabled={loading || !asOnDate}
-                sx={{
-                  minWidth: { xs: '100%', md: 160 },
-                  width: { xs: '100%', md: 'auto' },
-                  borderRadius: 2,
-                  fontSize: '0.95rem',
-                  fontWeight: 600,
-                  background: 'linear-gradient(135deg, #1b4332 0%, #2d6a4f 100%)',
-                  color: '#ffffff',
-                  textTransform: 'none',
-                  boxShadow: '0 4px 12px rgba(27, 67, 50, 0.3)',
-                  '&:hover': {
-                    background: 'linear-gradient(135deg, #0f2419 0%, #1b4332 100%)',
-                    boxShadow: '0 6px 16px rgba(27, 67, 50, 0.4)',
-                    transform: 'translateY(-2px)',
-                  },
-                  transition: 'all 0.3s ease',
-                }}
-              >
-                Search
-              </Button>
-            </Box>
-          </LocalizationProvider>
+          {/* Fetch Button */}
+          <Box display="flex" justifyContent="center">
+            <Button
+              variant="contained"
+              size="large"
+              startIcon={<SearchIcon />}
+              onClick={fetchData}
+              disabled={loading}
+              sx={{
+                minWidth: 200,
+                borderRadius: 2,
+                fontSize: '0.95rem',
+                fontWeight: 600,
+                background: 'linear-gradient(135deg, #1b4332 0%, #2d6a4f 100%)',
+                color: '#ffffff',
+                textTransform: 'none',
+                boxShadow: '0 4px 12px rgba(27, 67, 50, 0.3)',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #0f2419 0%, #1b4332 100%)',
+                  boxShadow: '0 6px 16px rgba(27, 67, 50, 0.4)',
+                  transform: 'translateY(-2px)',
+                },
+                transition: 'all 0.3s ease',
+              }}
+            >
+              Load Container Data
+            </Button>
+          </Box>
         </CardContent>
       </Card>
 
@@ -363,10 +320,10 @@ const LogClosingStockView = ({ onBackClick }) => {
           <CardContent>
             <CircularProgress size={48} sx={{ color: '#1b4332', mb: 2 }} />
             <Typography variant="h6" color="textSecondary">
-              Loading log closing stock data...
+              Loading container loading data...
             </Typography>
             <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-              Please wait while we fetch the data for {asOnDate?.format('DD/MM/YYYY')}
+              Please wait while we fetch the client-wise container data
             </Typography>
           </CardContent>
         </Card>
@@ -405,8 +362,8 @@ const LogClosingStockView = ({ onBackClick }) => {
                 alignItems: 'center',
                 gap: 1
               }}>
-                <InventoryIcon />
-                Log Closing Stock as on {asOnDate?.format('DD/MM/YYYY')}
+                <LocalShippingIcon />
+                Container Loading Summary ({data ? data.length : 0} datasets)
               </Typography>
               <Button
                 variant="contained"
@@ -453,25 +410,67 @@ const LogClosingStockView = ({ onBackClick }) => {
                   flexDirection: 'column',
                   justifyContent: 'center'
                 }}>
-                  <ForestIcon sx={{ fontSize: { xs: 28, md: 40 }, mb: 1, opacity: 0.8 }} />
+                  <LocalShippingIcon sx={{ fontSize: { xs: 28, md: 40 }, mb: 1, opacity: 0.8 }} />
                   <Typography variant="h4" sx={{ 
                     fontWeight: 700, 
                     mb: 1,
                     fontSize: { xs: '1.2rem', md: '2rem' },
                     lineHeight: 1.2
                   }}>
-                    {formatNumber(summaryStats.totalLogs)}
+                    {formatNumber(summaryStats.totalMTDContainers)}
                   </Typography>
                   <Typography variant="body2" sx={{ 
                     opacity: 0.9,
                     fontSize: { xs: '0.7rem', md: '0.875rem' }
                   }}>
-                    Total Logs
+                    MTD Containers
                   </Typography>
                 </CardContent>
               </Card>
             </Grid>
             
+            <Grid item xs={6} sm={6} md={3}>
+              <Card sx={{ 
+                borderRadius: 2, 
+                background: summaryStats.growthContainers >= 0 
+                  ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)'
+                  : 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)',
+                color: 'white',
+                height: { xs: '140px', md: '140px' },
+                width: '100%'
+              }}>
+                <CardContent sx={{ 
+                  textAlign: 'center', 
+                  py: { xs: 2, md: 3 },
+                  px: { xs: 1, md: 2 },
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center'
+                }}>
+                  {summaryStats.growthContainers >= 0 ? (
+                    <TrendingUpIcon sx={{ fontSize: { xs: 28, md: 40 }, mb: 1, opacity: 0.8 }} />
+                  ) : (
+                    <TrendingDownIcon sx={{ fontSize: { xs: 28, md: 40 }, mb: 1, opacity: 0.8 }} />
+                  )}
+                  <Typography variant="h4" sx={{ 
+                    fontWeight: 700, 
+                    mb: 1,
+                    fontSize: { xs: '1.2rem', md: '2rem' },
+                    lineHeight: 1.2
+                  }}>
+                    {summaryStats.growthPercentage >= 0 ? '+' : ''}{summaryStats.growthPercentage.toFixed(1)}%
+                  </Typography>
+                  <Typography variant="body2" sx={{ 
+                    opacity: 0.9,
+                    fontSize: { xs: '0.7rem', md: '0.875rem' }
+                  }}>
+                    Growth Rate
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+
             <Grid item xs={6} sm={6} md={3}>
               <Card sx={{ 
                 borderRadius: 2, 
@@ -496,13 +495,13 @@ const LogClosingStockView = ({ onBackClick }) => {
                     fontSize: { xs: '1.2rem', md: '2rem' },
                     lineHeight: 1.2
                   }}>
-                    {summaryStats.uniqueForests}
+                    {summaryStats.activeClients}
                   </Typography>
                   <Typography variant="body2" sx={{ 
                     opacity: 0.9,
                     fontSize: { xs: '0.7rem', md: '0.875rem' }
                   }}>
-                    Forests
+                    Active Clients
                   </Typography>
                 </CardContent>
               </Card>
@@ -511,7 +510,7 @@ const LogClosingStockView = ({ onBackClick }) => {
             <Grid item xs={6} sm={6} md={3}>
               <Card sx={{ 
                 borderRadius: 2, 
-                background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+                background: 'linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%)',
                 color: 'white',
                 height: { xs: '140px', md: '140px' },
                 width: '100%'
@@ -525,58 +524,20 @@ const LogClosingStockView = ({ onBackClick }) => {
                   flexDirection: 'column',
                   justifyContent: 'center'
                 }}>
-                  <InventoryIcon sx={{ fontSize: { xs: 28, md: 40 }, mb: 1, opacity: 0.8 }} />
+                  <CalendarTodayIcon sx={{ fontSize: { xs: 28, md: 40 }, mb: 1, opacity: 0.8 }} />
                   <Typography variant="h4" sx={{ 
                     fontWeight: 700, 
                     mb: 1,
                     fontSize: { xs: '1.2rem', md: '2rem' },
                     lineHeight: 1.2
                   }}>
-                    {formatNumber(summaryStats.totalActualCBM)}
+                    {formatNumber(summaryStats.totalYearlyContainers)}
                   </Typography>
                   <Typography variant="body2" sx={{ 
                     opacity: 0.9,
                     fontSize: { xs: '0.7rem', md: '0.875rem' }
                   }}>
-                    Total CBM
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-
-            <Grid item xs={6} sm={6} md={3}>
-              <Card sx={{ 
-                borderRadius: 2, 
-                background: summaryStats.variance >= 0 
-                  ? 'linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%)'
-                  : 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)',
-                color: 'white',
-                height: { xs: '140px', md: '140px' },
-                width: '100%'
-              }}>
-                <CardContent sx={{ 
-                  textAlign: 'center', 
-                  py: { xs: 2, md: 3 },
-                  px: { xs: 1, md: 2 },
-                  height: '100%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center'
-                }}>
-                  <VerifiedIcon sx={{ fontSize: { xs: 28, md: 40 }, mb: 1, opacity: 0.8 }} />
-                  <Typography variant="h4" sx={{ 
-                    fontWeight: 700, 
-                    mb: 1,
-                    fontSize: { xs: '1.2rem', md: '2rem' },
-                    lineHeight: 1.2
-                  }}>
-                    {formatNumber(summaryStats.variance)}
-                  </Typography>
-                  <Typography variant="body2" sx={{ 
-                    opacity: 0.9,
-                    fontSize: { xs: '0.7rem', md: '0.875rem' }
-                  }}>
-                    CBM Variance
+                    Yearly Total
                   </Typography>
                 </CardContent>
               </Card>
@@ -588,7 +549,7 @@ const LogClosingStockView = ({ onBackClick }) => {
       {/* Charts Section */}
       {chartData && (
         <Box sx={{ mb: 4 }}>
-          {/* Forest-wise Log Count Chart */}
+          {/* Top Clients Comparison Chart */}
           <Card sx={{ 
             borderRadius: 2, 
             height: { xs: '300px', md: '400px' }, 
@@ -604,7 +565,7 @@ const LogClosingStockView = ({ onBackClick }) => {
                 textAlign: 'center',
                 fontSize: { xs: '1rem', md: '1.25rem' }
               }}>
-                Forest-wise Log Count Distribution
+                Top 10 Clients - MTD vs Previous Month
               </Typography>
               <Box sx={{ 
                 height: 'calc(100% - 40px)',
@@ -630,115 +591,13 @@ const LogClosingStockView = ({ onBackClick }) => {
                   height: '100%'
                 }}>
                   <Bar
-                    key={`forest-chart-${asOnDate?.format('YYYY-MM-DD')}`}
+                    key={`clients-chart`}
                     data={{
-                      labels: chartData.forest.labels,
+                      labels: chartData.topClients.labels,
                       datasets: [
                         {
-                          label: 'Log Count',
-                          data: chartData.forest.logCounts,
-                          backgroundColor: 'rgba(27, 67, 50, 0.8)',
-                          borderColor: 'rgba(27, 67, 50, 1)',
-                          borderWidth: 1,
-                          barThickness: barThickness,
-                          maxBarThickness: maxBarThickness,
-                        },
-                      ],
-                    }}
-                    options={{
-                      responsive: true,
-                      maintainAspectRatio: false,
-                      plugins: {
-                        legend: {
-                          display: false,
-                        },
-                      },
-                      scales: {
-                        y: {
-                          beginAtZero: true,
-                          title: {
-                            display: true,
-                            text: 'Log Count',
-                            font: {
-                              size: fontSize
-                            }
-                          },
-                          ticks: {
-                            font: {
-                              size: tickFontSize
-                            }
-                          }
-                        },
-                        x: {
-                          ticks: {
-                            font: {
-                              size: tickFontSize
-                            }
-                          }
-                        }
-                      },
-                      layout: {
-                        padding: {
-                          left: isMobile ? 5 : 10,
-                          right: isMobile ? 5 : 10,
-                        }
-                      }
-                    }}
-                  />
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-
-          {/* CBM Comparison Chart */}
-          <Card sx={{ 
-            borderRadius: 2, 
-            height: { xs: '300px', md: '400px' }, 
-            mb: 3,
-            mx: 'auto',
-            maxWidth: '100%'
-          }}>
-            <CardContent sx={{ height: '100%', p: { xs: 2, md: 3 } }}>
-              <Typography variant="h6" sx={{ 
-                mb: 2, 
-                fontWeight: 600, 
-                color: '#1b4332',
-                textAlign: 'center',
-                fontSize: { xs: '1rem', md: '1.25rem' }
-              }}>
-                Forest-wise CBM Analysis
-              </Typography>
-              <Box sx={{ 
-                height: 'calc(100% - 40px)',
-                overflowX: { xs: 'auto', md: 'visible' },
-                overflowY: 'hidden',
-                '&::-webkit-scrollbar': {
-                  height: '8px',
-                },
-                '&::-webkit-scrollbar-track': {
-                  backgroundColor: '#f1f1f1',
-                  borderRadius: '4px',
-                },
-                '&::-webkit-scrollbar-thumb': {
-                  backgroundColor: '#c1c1c1',
-                  borderRadius: '4px',
-                  '&:hover': {
-                    backgroundColor: '#a8a8a8',
-                  },
-                },
-              }}>
-                <Box sx={{ 
-                  minWidth: { xs: '900px', md: '100%' },
-                  height: '100%'
-                }}>
-                  <Bar
-                    key={`cbm-chart-${asOnDate?.format('YYYY-MM-DD')}`}
-                    data={{
-                      labels: chartData.forest.labels,
-                      datasets: [
-                        {
-                          label: 'Bordereau CBM',
-                          data: chartData.forest.bordereauCBM,
+                          label: 'MTD Containers',
+                          data: chartData.topClients.mtdData,
                           backgroundColor: 'rgba(27, 67, 50, 0.8)',
                           borderColor: 'rgba(27, 67, 50, 1)',
                           borderWidth: 1,
@@ -746,8 +605,8 @@ const LogClosingStockView = ({ onBackClick }) => {
                           maxBarThickness: maxBarThickness,
                         },
                         {
-                          label: 'Actual CBM',
-                          data: chartData.forest.actualCBM,
+                          label: 'Previous Month',
+                          data: chartData.topClients.prevData,
                           backgroundColor: 'rgba(45, 106, 79, 0.8)',
                           borderColor: 'rgba(45, 106, 79, 1)',
                           borderWidth: 1,
@@ -774,7 +633,7 @@ const LogClosingStockView = ({ onBackClick }) => {
                           beginAtZero: true,
                           title: {
                             display: true,
-                            text: 'CBM',
+                            text: 'Container Count',
                             font: {
                               size: fontSize
                             }
@@ -789,7 +648,8 @@ const LogClosingStockView = ({ onBackClick }) => {
                           ticks: {
                             font: {
                               size: tickFontSize
-                            }
+                            },
+                            maxRotation: 45
                           }
                         }
                       },
@@ -806,7 +666,7 @@ const LogClosingStockView = ({ onBackClick }) => {
             </CardContent>
           </Card>
 
-          {/* FSC Distribution Chart */}
+          {/* Monthly Trend Chart */}
           <Card sx={{ 
             borderRadius: 2, 
             height: { xs: '300px', md: '400px' }, 
@@ -822,7 +682,124 @@ const LogClosingStockView = ({ onBackClick }) => {
                 textAlign: 'center',
                 fontSize: { xs: '1rem', md: '1.25rem' }
               }}>
-                FSC Certification Distribution
+                Monthly Container Loading Trend (Current Year)
+              </Typography>
+              <Box sx={{ 
+                height: 'calc(100% - 40px)',
+                overflowX: { xs: 'auto', md: 'visible' },
+                overflowY: 'hidden',
+                '&::-webkit-scrollbar': {
+                  height: '8px',
+                },
+                '&::-webkit-scrollbar-track': {
+                  backgroundColor: '#f1f1f1',
+                  borderRadius: '4px',
+                },
+                '&::-webkit-scrollbar-thumb': {
+                  backgroundColor: '#c1c1c1',
+                  borderRadius: '4px',
+                  '&:hover': {
+                    backgroundColor: '#a8a8a8',
+                  },
+                },
+              }}>
+                <Box sx={{ 
+                  minWidth: { xs: '600px', md: '100%' },
+                  height: '100%'
+                }}>
+                  <Line
+                    key={`monthly-trend-chart`}
+                    data={{
+                      labels: chartData.monthlyTrend.labels,
+                      datasets: [
+                        {
+                          label: 'Container Count',
+                          data: chartData.monthlyTrend.data,
+                          borderColor: 'rgba(255, 183, 77, 1)',
+                          backgroundColor: 'rgba(255, 183, 77, 0.1)',
+                          borderWidth: 3,
+                          fill: true,
+                          tension: 0.4,
+                          pointBackgroundColor: 'rgba(255, 183, 77, 1)',
+                          pointBorderColor: 'rgba(255, 183, 77, 1)',
+                          pointRadius: 6,
+                          pointHoverRadius: 8,
+                        },
+                      ],
+                    }}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: {
+                          display: false,
+                        },
+                      },
+                      scales: {
+                        y: {
+                          beginAtZero: true,
+                          title: {
+                            display: true,
+                            text: 'Container Count',
+                            font: {
+                              size: fontSize
+                            }
+                          },
+                          grid: {
+                            color: 'rgba(0, 0, 0, 0.1)',
+                          },
+                          ticks: {
+                            font: {
+                              size: tickFontSize
+                            }
+                          }
+                        },
+                        x: {
+                          grid: {
+                            color: 'rgba(0, 0, 0, 0.1)',
+                          },
+                          ticks: {
+                            font: {
+                              size: tickFontSize
+                            }
+                          }
+                        },
+                      },
+                      elements: {
+                        point: {
+                          hoverBackgroundColor: 'rgba(255, 255, 255, 1)',
+                        },
+                      },
+                      layout: {
+                        padding: {
+                          left: isMobile ? 5 : 10,
+                          right: isMobile ? 5 : 10,
+                        }
+                      }
+                    }}
+                  />
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+
+          {/* Client Performance Distribution */}
+          <Card sx={{ 
+            borderRadius: 2, 
+            height: { xs: '300px', md: '400px' }, 
+            mb: 3,
+            mx: 'auto',
+            maxWidth: '100%'
+          }}>
+            <CardContent sx={{ height: '100%', p: { xs: 2, md: 3 } }}>
+              <Typography variant="h6" sx={{ 
+                mb: 2, 
+                fontWeight: 600, 
+                color: '#1b4332',
+                textAlign: 'center',
+                fontSize: { xs: '1rem', md: '1.25rem' }
+              }}>
+                Client Performance Distribution
               </Typography>
               <Box sx={{ 
                 height: 'calc(100% - 40px)', 
@@ -832,20 +809,22 @@ const LogClosingStockView = ({ onBackClick }) => {
                 maxWidth: { xs: '250px', md: '350px' },
                 mx: 'auto'
               }}>
-                <Pie
-                  key={`fsc-chart-${asOnDate?.format('YYYY-MM-DD')}`}
+                <Doughnut
+                  key={`performance-chart`}
                   data={{
-                    labels: chartData.fscDistribution.labels,
+                    labels: chartData.clientPerformance.labels,
                     datasets: [
                       {
-                        data: chartData.fscDistribution.logCounts,
+                        data: chartData.clientPerformance.data,
                         backgroundColor: [
-                          'rgba(34, 197, 94, 0.8)',   // Green for FSC 100%
-                          'rgba(239, 68, 68, 0.8)',   // Red for Non-FSC
+                          'rgba(16, 185, 129, 0.8)',   // Green for Growth
+                          'rgba(239, 68, 68, 0.8)',    // Red for Decline
+                          'rgba(107, 114, 128, 0.8)',  // Gray for Stable
                         ],
                         borderColor: [
-                          'rgba(34, 197, 94, 1)',     // Green border for FSC 100%
-                          'rgba(239, 68, 68, 1)',     // Red border for Non-FSC
+                          'rgba(16, 185, 129, 1)',
+                          'rgba(239, 68, 68, 1)',
+                          'rgba(107, 114, 128, 1)',
                         ],
                         borderWidth: 2,
                       },
@@ -869,7 +848,7 @@ const LogClosingStockView = ({ onBackClick }) => {
                           label: function(context) {
                             const total = context.dataset.data.reduce((a, b) => a + b, 0);
                             const percentage = ((context.parsed / total) * 100).toFixed(1);
-                            return `${context.label}: ${context.parsed} logs (${percentage}%)`;
+                            return `${context.label}: ${context.parsed} clients (${percentage}%)`;
                           }
                         }
                       }
@@ -887,43 +866,75 @@ const LogClosingStockView = ({ onBackClick }) => {
         <Card sx={{ borderRadius: 2, overflow: 'hidden' }}>
           <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
             <Tabs value={tabValue} onChange={handleTabChange} variant="scrollable" scrollButtons="auto">
-              <Tab label="Forest & Quality" />
-              <Tab label="Forest Summary" />
-              <Tab label="Forest & Origin" />
-              <Tab label="Forest & AAC" />
-              <Tab label="Forest Origin Loading" />
-              <Tab label="Company & Certificate" />
-              <Tab label="Detailed Data" />
+              <Tab label="Client Summary" />
+              <Tab label="Monthly Loading" />
             </Tabs>
           </Box>
 
-          {data.map((dataset, index) => (
-            <TabPanel key={index} value={tabValue} index={index}>
-              {dataset && dataset.length > 0 && (
-                <TableContainer sx={{ maxHeight: '70vh' }}>
-                  <Table stickyHeader>
-                    <TableHead>
-                      <TableRow>
-                        {Object.keys(dataset[0]).map((key) => (
-                          <TableCell 
-                            key={key}
-                            sx={{ 
-                              backgroundColor: '#1b4332', 
-                              color: '#ffffff', 
-                              fontWeight: 600,
-                              fontSize: '0.9rem',
-                              borderBottom: 'none'
-                            }}
-                          >
-                            {key.replace(/_/g, ' ')}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {dataset.map((row, rowIndex) => (
+          {/* Client Summary Table */}
+          <TabPanel value={tabValue} index={0}>
+            {data[0] && data[0].length > 0 && (
+              <TableContainer sx={{ maxHeight: '70vh' }}>
+                <Table stickyHeader>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{ 
+                        backgroundColor: '#1b4332', 
+                        color: '#ffffff', 
+                        fontWeight: 600,
+                        fontSize: '0.9rem',
+                        borderBottom: 'none'
+                      }}>
+                        Client Name
+                      </TableCell>
+                      <TableCell sx={{ 
+                        backgroundColor: '#1b4332', 
+                        color: '#ffffff', 
+                        fontWeight: 600,
+                        fontSize: '0.9rem',
+                        borderBottom: 'none'
+                      }}>
+                        MTD Containers
+                      </TableCell>
+                      <TableCell sx={{ 
+                        backgroundColor: '#1b4332', 
+                        color: '#ffffff', 
+                        fontWeight: 600,
+                        fontSize: '0.9rem',
+                        borderBottom: 'none'
+                      }}>
+                        Previous Month
+                      </TableCell>
+                      <TableCell sx={{ 
+                        backgroundColor: '#1b4332', 
+                        color: '#ffffff', 
+                        fontWeight: 600,
+                        fontSize: '0.9rem',
+                        borderBottom: 'none'
+                      }}>
+                        Growth
+                      </TableCell>
+                      <TableCell sx={{ 
+                        backgroundColor: '#1b4332', 
+                        color: '#ffffff', 
+                        fontWeight: 600,
+                        fontSize: '0.9rem',
+                        borderBottom: 'none'
+                      }}>
+                        Growth %
+                      </TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {data[0].map((row, index) => {
+                      const growth = (parseFloat(row.MTD_CONTAINER) || 0) - (parseFloat(row.PREVMONTH_CONTAINER) || 0);
+                      const growthPercent = (parseFloat(row.PREVMONTH_CONTAINER) || 0) > 0 
+                        ? (growth / (parseFloat(row.PREVMONTH_CONTAINER) || 0)) * 100 
+                        : 0;
+                      
+                      return (
                         <TableRow 
-                          key={rowIndex}
+                          key={index}
                           sx={{ 
                             '&:nth-of-type(odd)': { backgroundColor: '#f8f9fa' },
                             '&:hover': { 
@@ -932,26 +943,112 @@ const LogClosingStockView = ({ onBackClick }) => {
                             }
                           }}
                         >
-                          {Object.entries(row).map(([key, value], cellIndex) => (
-                            <TableCell 
-                              key={cellIndex}
-                              sx={{ 
-                                fontSize: '0.9rem', 
-                                borderBottom: '1px solid #e0e0e0',
-                                fontWeight: (key.includes('TOTAL') || String(value).includes('GRAND TOTAL')) ? 600 : 400
-                              }}
-                            >
-                              {key.includes('CBM') || key.includes('COUNT') ? formatNumber(value) : (value || '')}
-                            </TableCell>
-                          ))}
+                          <TableCell sx={{ 
+                            fontWeight: 500,
+                            fontSize: '0.9rem',
+                            borderBottom: '1px solid #e0e0e0'
+                          }}>
+                            {row.Client_Name || ''}
+                          </TableCell>
+                          <TableCell sx={{ fontSize: '0.9rem', borderBottom: '1px solid #e0e0e0' }}>
+                            {formatNumber(row.MTD_CONTAINER)}
+                          </TableCell>
+                          <TableCell sx={{ fontSize: '0.9rem', borderBottom: '1px solid #e0e0e0' }}>
+                            {formatNumber(row.PREVMONTH_CONTAINER)}
+                          </TableCell>
+                          <TableCell sx={{ 
+                            fontSize: '0.9rem', 
+                            borderBottom: '1px solid #e0e0e0',
+                            color: growth >= 0 ? '#059669' : '#dc2626',
+                            fontWeight: 500
+                          }}>
+                            {growth >= 0 ? '+' : ''}{formatNumber(growth)}
+                          </TableCell>
+                          <TableCell sx={{ 
+                            fontSize: '0.9rem', 
+                            borderBottom: '1px solid #e0e0e0',
+                            color: growthPercent >= 0 ? '#059669' : '#dc2626',
+                            fontWeight: 500
+                          }}>
+                            {growthPercent >= 0 ? '+' : ''}{growthPercent.toFixed(1)}%
+                          </TableCell>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              )}
-            </TabPanel>
-          ))}
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </TabPanel>
+
+          {/* Monthly Loading Table */}
+          <TabPanel value={tabValue} index={1}>
+            {data[1] && data[1].length > 0 && (
+              <TableContainer sx={{ maxHeight: '70vh' }}>
+                <Table stickyHeader>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{ 
+                        backgroundColor: '#1b4332', 
+                        color: '#ffffff', 
+                        fontWeight: 600,
+                        fontSize: '0.9rem',
+                        borderBottom: 'none'
+                      }}>
+                        Loading Month
+                      </TableCell>
+                      <TableCell sx={{ 
+                        backgroundColor: '#1b4332', 
+                        color: '#ffffff', 
+                        fontWeight: 600,
+                        fontSize: '0.9rem',
+                        borderBottom: 'none'
+                      }}>
+                        Month
+                      </TableCell>
+                      <TableCell sx={{ 
+                        backgroundColor: '#1b4332', 
+                        color: '#ffffff', 
+                        fontWeight: 600,
+                        fontSize: '0.9rem',
+                        borderBottom: 'none'
+                      }}>
+                        Container Count
+                      </TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {data[1].map((row, index) => (
+                      <TableRow 
+                        key={index}
+                        sx={{ 
+                          '&:nth-of-type(odd)': { backgroundColor: '#f8f9fa' },
+                          '&:hover': { 
+                            backgroundColor: '#e8f5e9',
+                            transition: 'background-color 0.2s ease'
+                          }
+                        }}
+                      >
+                        <TableCell sx={{ 
+                          fontWeight: 500,
+                          fontSize: '0.9rem',
+                          borderBottom: '1px solid #e0e0e0'
+                        }}>
+                          {row.LOADING_MONTH || ''}
+                        </TableCell>
+                        <TableCell sx={{ fontSize: '0.9rem', borderBottom: '1px solid #e0e0e0' }}>
+                          {row.MONTHS || ''}
+                        </TableCell>
+                        <TableCell sx={{ fontSize: '0.9rem', borderBottom: '1px solid #e0e0e0' }}>
+                          {formatNumber(row.NO_OF_CONTAINER_2025)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </TabPanel>
         </Card>
       )}
 
@@ -959,12 +1056,12 @@ const LogClosingStockView = ({ onBackClick }) => {
       {data && data.length === 0 && (
         <Card sx={{ borderRadius: 2, textAlign: 'center', py: 8 }}>
           <CardContent>
-            <InventoryIcon sx={{ fontSize: 64, color: '#ccc', mb: 2 }} />
+            <LocalShippingIcon sx={{ fontSize: 64, color: '#ccc', mb: 2 }} />
             <Typography variant="h6" color="textSecondary">
-              No log closing stock data found for {asOnDate?.format('DD/MM/YYYY')}
+              No container loading data found
             </Typography>
             <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-              Try selecting a different date or check if data exists for this period.
+              Try refreshing the data or check if containers are available in the system.
             </Typography>
           </CardContent>
         </Card>
@@ -973,4 +1070,4 @@ const LogClosingStockView = ({ onBackClick }) => {
   );
 };
 
-export default LogClosingStockView;
+export default ContainerLoadingView;

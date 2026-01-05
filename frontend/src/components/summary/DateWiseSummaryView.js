@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
   Container, Card, CardContent, Typography, Button, Box, 
   CircularProgress, Alert, Table, TableBody, TableCell, TableContainer, 
-  TableHead, TableRow, Chip
+  TableHead, TableRow, Chip, IconButton
 } from '@mui/material';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -10,10 +10,11 @@ import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import DownloadIcon from '@mui/icons-material/Download';
 import DateRangeIcon from '@mui/icons-material/DateRange';
 import SearchIcon from '@mui/icons-material/Search';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import * as XLSX from 'xlsx';
 import { API_URL } from '../../config';
 
-const DateWiseSummaryView = () => {
+const DateWiseSummaryView = ({ onBackClick }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [data, setData] = useState(null);
@@ -100,6 +101,18 @@ const DateWiseSummaryView = () => {
       }}>
         <CardContent sx={{ p: 4 }}>
           <Box display="flex" alignItems="center" mb={3}>
+            {onBackClick && (
+              <IconButton 
+                onClick={onBackClick}
+                sx={{ 
+                  mr: 2, 
+                  color: '#1b4332',
+                  '&:hover': { backgroundColor: '#f5f5f5' }
+                }}
+              >
+                <ArrowBackIcon />
+              </IconButton>
+            )}
             <Box sx={{ 
               background: 'linear-gradient(135deg, #1b4332 0%, #2d6a4f 100%)',
               borderRadius: 2,

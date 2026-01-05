@@ -2,30 +2,26 @@ import React, { useState } from 'react';
 import { 
   Container, Card, CardContent, Typography, Button, Box, 
   CircularProgress, Alert, Table, TableBody, TableCell, TableContainer, 
-  TableHead, TableRow, Grid, IconButton, Tabs, Tab
+  TableHead, TableRow, TextField, Grid, IconButton
 } from '@mui/material';
 import DownloadIcon from '@mui/icons-material/Download';
-import ForestIcon from '@mui/icons-material/Forest';
+import LinkIcon from '@mui/icons-material/Link';
 import SearchIcon from '@mui/icons-material/Search';
-import InventoryIcon from '@mui/icons-material/Inventory';
-import BarChartIcon from '@mui/icons-material/BarChart';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import TrendingDownIcon from '@mui/icons-material/TrendingDown';
-import PieChartIcon from '@mui/icons-material/PieChart';
+import BusinessIcon from '@mui/icons-material/Business';
+import ForestIcon from '@mui/icons-material/Forest';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
   BarElement,
-  LineElement,
-  PointElement,
   Title,
   Tooltip,
   Legend,
   ArcElement,
 } from 'chart.js';
-import { Bar, Pie } from 'react-chartjs-2';
+import { Bar, Doughnut } from 'react-chartjs-2';
 import * as XLSX from 'xlsx';
 import { API_URL } from '../../config';
 
@@ -33,80 +29,49 @@ ChartJS.register(
   CategoryScale,
   LinearScale,
   BarElement,
-  LineElement,
-  PointElement,
   Title,
   Tooltip,
   Legend,
   ArcElement
 );
 
-function TabPanel(props) {
-  const { children, value, index, ...other } = props;
-
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`simple-tabpanel-${index}`}
-      aria-labelledby={`simple-tab-${index}`}
-      {...other}
-    >
-      {value === index && (
-        <Box>
-          {children}
-        </Box>
-      )}
-    </div>
-  );
-}
-
-const CurrentLogStockView = ({ onBackClick }) => {
+const AacConnectionView = ({ onBackClick }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [data, setData] = useState(null);
-  const [tabValue, setTabValue] = useState(0);
-
-  const handleTabChange = (event, newValue) => {
-    setTabValue(newValue);
-  };
+  const [containerNo, setContainerNo] = useState('');
 
   const handleExcelDownload = () => {
     if (!data || !data.length) return;
 
     const wb = XLSX.utils.book_new();
+    
+    const sheetData = data.map(item => ({
+      'Container No': item.CONTAINER_NO || '',
+      'Market Name': item.MARKETNAME || '',
+      'Market Group': item.MARKETGROUP || '',
+      'Forest': item.FOREST || '',
+      'AAC': item.AAC || '',
+      'Origin': item.ORIGIN || '',
+      'Essence': item.ESSENCE || '',
+      'Entry Time': item.ENTRYTIME || '',
+      'Entry User': item.ENTRYUSER || '',
+      'Loading Date': item.LOADING_DATE || '',
+      'Status': item.ACTSTATUS || ''
+    }));
+    
+    const sheet = XLSX.utils.json_to_sheet(sheetData);
+    XLSX.utils.book_append_sheet(wb, sheet, 'AAC Connection');
 
-    // Create sheets for each dataset
-    const sheetNames = [
-      'Forest & Quality Summary',
-      'Forest Summary', 
-      'Forest & Origin Summary',
-      'Forest & AAC Summary',
-      'Forest Origin Loading Summary',
-      'Company & Certificate Summary',
-      'Detailed Data'
-    ];
-
-    data.forEach((dataset, index) => {
-      if (dataset && dataset.length > 0) {
-        const sheetData = dataset.map(item => {
-          const cleanItem = {};
-          Object.keys(item).forEach(key => {
-            cleanItem[key] = item[key] || '';
-          });
-          return cleanItem;
-        });
-        
-        const sheet = XLSX.utils.json_to_sheet(sheetData);
-        XLSX.utils.book_append_sheet(wb, sheet, sheetNames[index] || `Sheet ${index + 1}`);
-      }
-    });
-
-    const dateStr = new Date().toISOString().split('T')[0];
-    XLSX.writeFile(wb, `Current_Log_Stock_${dateStr}.xlsx`);
+    XLSX.writeFile(wb, `AAC_Connection_${containerNo}_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   const fetchData = async () => {
+    if (!containerNo.trim()) {
+      setError('Please enter a container number');
+      return;
+    }
+
     setLoading(true);
     setError('');
     setData(null);
@@ -117,20 +82,24 @@ const CurrentLogStockView = ({ onBackClick }) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          procedure: 'proc_rp_logstocknotcuttedx',
-          parameters: {}
+          procedure: 'proc_getforestAACconnection',
+          parameters: {
+            containerno: containerNo.trim(),
+            user1: 'system' // Default user parameter
+          }
         })
       });
       
       if (!res.ok) throw new Error('API error: ' + res.statusText);
       const apiData = await res.json();
 
-      if (!apiData.data || apiData.data.length === 0) {
-        setError('No current log stock data found.');
+      if (!apiData.data || apiData.data.length === 0 || !apiData.data[0] || apiData.data[0].length === 0) {
+        setError('No AAC connection data found for the specified container.');
         return;
       }
 
-      setData(apiData.data);
+      // The stored procedure returns one result set with container forest link data
+      setData(apiData.data[0]);
     } catch (e) {
       setError(e.message || 'Fetch failed');
     } finally {
@@ -138,38 +107,21 @@ const CurrentLogStockView = ({ onBackClick }) => {
     }
   };
 
-  const formatNumber = (num) => {
-    if (num === null || num === undefined) return '0';
-    return parseFloat(num).toLocaleString('en-IN', { 
-      minimumFractionDigits: 2, 
-      maximumFractionDigits: 2 
-    });
-  };
-
   // Calculate summary statistics
   const calculateSummaryStats = (data) => {
     if (!data || data.length === 0) return null;
 
-    // Use the detailed data (last recordset) for calculations
-    const detailedData = data[data.length - 1] || [];
-    
-    const totalLogs = detailedData.length;
-    const totalBordereauCBM = detailedData.reduce((sum, item) => sum + (parseFloat(item.CBM_BORDEREAU) || 0), 0);
-    const totalActualCBM = detailedData.reduce((sum, item) => sum + (parseFloat(item.BORD_ACTUAL_CBM) || 0), 0);
-    
-    // Count unique forests, companies, qualities
-    const uniqueForests = [...new Set(detailedData.map(item => item.FOREST).filter(Boolean))].length;
-    const uniqueCompanies = [...new Set(detailedData.map(item => item.COMPANY).filter(Boolean))].length;
-    const uniqueQualities = [...new Set(detailedData.map(item => item.QUALITY).filter(Boolean))].length;
+    const uniqueForests = [...new Set(data.map(item => item.FOREST).filter(Boolean))].length;
+    const uniqueMarkets = [...new Set(data.map(item => item.MARKETNAME).filter(Boolean))].length;
+    const uniqueOrigins = [...new Set(data.map(item => item.ORIGIN).filter(Boolean))].length;
+    const uniqueEssences = [...new Set(data.map(item => item.ESSENCE).filter(Boolean))].length;
 
     return {
-      totalLogs,
-      totalBordereauCBM,
-      totalActualCBM,
+      totalRecords: data.length,
       uniqueForests,
-      uniqueCompanies,
-      uniqueQualities,
-      variance: totalActualCBM - totalBordereauCBM
+      uniqueMarkets,
+      uniqueOrigins,
+      uniqueEssences
     };
   };
 
@@ -177,64 +129,47 @@ const CurrentLogStockView = ({ onBackClick }) => {
   const prepareChartData = (data) => {
     if (!data || data.length === 0) return null;
 
-    // Forest & Quality Summary (first recordset)
-    const forestQualityData = data[0] || [];
-    const forestData = data[1] || [];
-    const companyData = data[5] || [];
+    // Forest distribution
+    const forestCounts = {};
+    data.forEach(item => {
+      const forest = item.FOREST || 'Unknown';
+      forestCounts[forest] = (forestCounts[forest] || 0) + 1;
+    });
 
-    // Filter out grand total rows for charts
-    const filteredForestQuality = forestQualityData.filter(item => 
-      item.FOREST && item.FOREST !== 'GRAND TOTAL' && item.FOREST.trim() !== 'GRAND TOTAL'
-    );
-    
-    const filteredForest = forestData.filter(item => 
-      item.FOREST && item.FOREST !== 'GRAND TOTAL' && item.FOREST.trim() !== 'GRAND TOTAL'
-    );
+    // Origin distribution
+    const originCounts = {};
+    data.forEach(item => {
+      const origin = item.ORIGIN || 'Unknown';
+      originCounts[origin] = (originCounts[origin] || 0) + 1;
+    });
 
-    const filteredCompany = companyData.filter(item => 
-      item.COMPANY && item.COMPANY !== 'GRAND TOTAL' && item.COMPANY.trim() !== 'GRAND TOTAL'
-    );
-
-    // Calculate FSC vs Non-FSC distribution
-    let fscCount = 0;
-    let nonFscCount = 0;
-
-    filteredCompany.forEach(item => {
-      const logCount = parseFloat(item.LOG_COUNT) || 0;
-      const certificate = (item.CERTIFICATE || '').toString().trim().toUpperCase();
-      
-      // More specific FSC detection - only if it explicitly says "FSC 100%" or similar
-      if (certificate === 'FSC 100%' || certificate === 'FSC100%' || certificate === 'FSC-100%') {
-        fscCount += logCount;
-      } else {
-        nonFscCount += logCount;
-      }
+    // Market Group distribution
+    const marketGroupCounts = {};
+    data.forEach(item => {
+      const marketGroup = item.MARKETGROUP || 'Unknown';
+      marketGroupCounts[marketGroup] = (marketGroupCounts[marketGroup] || 0) + 1;
     });
 
     return {
-      forestQuality: {
-        labels: filteredForestQuality.map(item => `${item.FOREST} - ${item.QUALITY || 'N/A'}`),
-        logCounts: filteredForestQuality.map(item => parseFloat(item.LOG_COUNT) || 0),
-        bordereauCBM: filteredForestQuality.map(item => parseFloat(item.CBM_BORDEREAU) || 0),
-        actualCBM: filteredForestQuality.map(item => parseFloat(item.BORD_ACTUAL_CBM) || 0)
-      },
       forest: {
-        labels: filteredForest.map(item => item.FOREST),
-        logCounts: filteredForest.map(item => parseFloat(item.LOG_COUNT) || 0),
-        bordereauCBM: filteredForest.map(item => parseFloat(item.CBM_BORDEREAU) || 0),
-        actualCBM: filteredForest.map(item => parseFloat(item.BORD_ACTUAL_CBM) || 0)
+        labels: Object.keys(forestCounts),
+        data: Object.values(forestCounts)
       },
-      fscDistribution: {
-        labels: ['FSC 100%', 'Non-FSC'],
-        logCounts: [fscCount, nonFscCount]
+      origin: {
+        labels: Object.keys(originCounts),
+        data: Object.values(originCounts)
+      },
+      marketGroup: {
+        labels: Object.keys(marketGroupCounts),
+        data: Object.values(marketGroupCounts)
       }
     };
   };
 
   // Get responsive values
   const isMobile = window.innerWidth < 768;
-  const barThickness = isMobile ? 25 : undefined;
-  const maxBarThickness = isMobile ? 40 : 50;
+  const barThickness = isMobile ? 30 : undefined;
+  const maxBarThickness = isMobile ? 50 : 60;
   const fontSize = isMobile ? 10 : 12;
   const tickFontSize = isMobile ? 9 : 11;
 
@@ -274,28 +209,50 @@ const CurrentLogStockView = ({ onBackClick }) => {
               alignItems: 'center',
               justifyContent: 'center'
             }}>
-              <ForestIcon sx={{ fontSize: 28, color: '#ffffff' }} />
+              <LinkIcon sx={{ fontSize: 28, color: '#ffffff' }} />
             </Box>
             <Box>
               <Typography variant="h4" sx={{ fontWeight: 700, color: '#1b4332', letterSpacing: '-0.5px' }}>
-                Current Log Stock
+                Get AAC Connection
               </Typography>
               <Typography variant="body2" sx={{ color: '#666', mt: 0.5 }}>
-                Current inventory of logs not yet cut
+                Forest AAC connection data for container
               </Typography>
             </Box>
           </Box>
 
-          {/* Fetch Button */}
-          <Box display="flex" justifyContent="center">
+          {/* Container Number Input */}
+          <Box display="flex" flexDirection={{ xs: 'column', md: 'row' }} gap={2} alignItems="stretch">
+            <TextField
+              fullWidth
+              label="Container Number"
+              value={containerNo}
+              onChange={(e) => setContainerNo(e.target.value)}
+              placeholder="Enter container number"
+              sx={{
+                flex: 1,
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2,
+                  backgroundColor: '#fff',
+                  '&:hover fieldset': {
+                    borderColor: '#1b4332',
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: '#1b4332',
+                    borderWidth: '2px',
+                  },
+                },
+              }}
+            />
             <Button
               variant="contained"
               size="large"
               startIcon={<SearchIcon />}
               onClick={fetchData}
-              disabled={loading}
+              disabled={loading || !containerNo.trim()}
               sx={{
-                minWidth: 200,
+                minWidth: { xs: '100%', md: 160 },
+                width: { xs: '100%', md: 'auto' },
                 borderRadius: 2,
                 fontSize: '0.95rem',
                 fontWeight: 600,
@@ -311,7 +268,7 @@ const CurrentLogStockView = ({ onBackClick }) => {
                 transition: 'all 0.3s ease',
               }}
             >
-              Load Current Stock
+              Search
             </Button>
           </Box>
         </CardContent>
@@ -323,10 +280,10 @@ const CurrentLogStockView = ({ onBackClick }) => {
           <CardContent>
             <CircularProgress size={48} sx={{ color: '#1b4332', mb: 2 }} />
             <Typography variant="h6" color="textSecondary">
-              Loading current log stock data...
+              Loading AAC connection data...
             </Typography>
             <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-              Please wait while we fetch the current inventory data
+              Please wait while we fetch the data for container {containerNo}
             </Typography>
           </CardContent>
         </Card>
@@ -365,8 +322,8 @@ const CurrentLogStockView = ({ onBackClick }) => {
                 alignItems: 'center',
                 gap: 1
               }}>
-                <ForestIcon />
-                Current Log Stock ({data ? data.length : 0} datasets)
+                <LinkIcon />
+                AAC Connection for Container {containerNo} ({data.length} records)
               </Typography>
               <Button
                 variant="contained"
@@ -402,8 +359,43 @@ const CurrentLogStockView = ({ onBackClick }) => {
                 background: 'linear-gradient(135deg, #1b4332 0%, #2d6a4f 100%)',
                 color: 'white',
                 height: { xs: '140px', md: '140px' },
-                width: '100%',
-                aspectRatio: { xs: '1', md: 'auto' }
+                width: '100%'
+              }}>
+                <CardContent sx={{ 
+                  textAlign: 'center', 
+                  py: { xs: 2, md: 3 },
+                  px: { xs: 1, md: 2 },
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center'
+                }}>
+                  <LinkIcon sx={{ fontSize: { xs: 28, md: 40 }, mb: 1, opacity: 0.8 }} />
+                  <Typography variant="h4" sx={{ 
+                    fontWeight: 700, 
+                    mb: 1,
+                    fontSize: { xs: '1.2rem', md: '2rem' },
+                    lineHeight: 1.2
+                  }}>
+                    {summaryStats.totalRecords}
+                  </Typography>
+                  <Typography variant="body2" sx={{ 
+                    opacity: 0.9,
+                    fontSize: { xs: '0.7rem', md: '0.875rem' }
+                  }}>
+                    Total Records
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            
+            <Grid item xs={6} sm={6} md={3}>
+              <Card sx={{ 
+                borderRadius: 2, 
+                background: 'linear-gradient(135deg, #2563eb 0%, #3b82f6 100%)',
+                color: 'white',
+                height: { xs: '140px', md: '140px' },
+                width: '100%'
               }}>
                 <CardContent sx={{ 
                   textAlign: 'center', 
@@ -421,50 +413,13 @@ const CurrentLogStockView = ({ onBackClick }) => {
                     fontSize: { xs: '1.2rem', md: '2rem' },
                     lineHeight: 1.2
                   }}>
-                    {formatNumber(summaryStats.totalLogs)}
+                    {summaryStats.uniqueForests}
                   </Typography>
                   <Typography variant="body2" sx={{ 
                     opacity: 0.9,
                     fontSize: { xs: '0.7rem', md: '0.875rem' }
                   }}>
-                    Total Logs
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            
-            <Grid item xs={6} sm={6} md={3}>
-              <Card sx={{ 
-                borderRadius: 2, 
-                background: 'linear-gradient(135deg, #2563eb 0%, #3b82f6 100%)',
-                color: 'white',
-                height: { xs: '140px', md: '140px' },
-                width: '100%',
-                aspectRatio: { xs: '1', md: 'auto' }
-              }}>
-                <CardContent sx={{ 
-                  textAlign: 'center', 
-                  py: { xs: 2, md: 3 },
-                  px: { xs: 1, md: 2 },
-                  height: '100%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center'
-                }}>
-                  <BarChartIcon sx={{ fontSize: { xs: 28, md: 40 }, mb: 1, opacity: 0.8 }} />
-                  <Typography variant="h4" sx={{ 
-                    fontWeight: 700, 
-                    mb: 1,
-                    fontSize: { xs: '1.2rem', md: '2rem' },
-                    lineHeight: 1.2
-                  }}>
-                    {formatNumber(summaryStats.totalSections)}
-                  </Typography>
-                  <Typography variant="body2" sx={{ 
-                    opacity: 0.9,
-                    fontSize: { xs: '0.7rem', md: '0.875rem' }
-                  }}>
-                    Total Sections
+                    Unique Forests
                   </Typography>
                 </CardContent>
               </Card>
@@ -473,13 +428,10 @@ const CurrentLogStockView = ({ onBackClick }) => {
             <Grid item xs={6} sm={6} md={3}>
               <Card sx={{ 
                 borderRadius: 2, 
-                background: summaryStats.totalGainLoss >= 0 
-                  ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)'
-                  : 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)',
+                background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
                 color: 'white',
                 height: { xs: '140px', md: '140px' },
-                width: '100%',
-                aspectRatio: { xs: '1', md: 'auto' }
+                width: '100%'
               }}>
                 <CardContent sx={{ 
                   textAlign: 'center', 
@@ -490,24 +442,20 @@ const CurrentLogStockView = ({ onBackClick }) => {
                   flexDirection: 'column',
                   justifyContent: 'center'
                 }}>
-                  {summaryStats.totalGainLoss >= 0 ? (
-                    <TrendingUpIcon sx={{ fontSize: { xs: 28, md: 40 }, mb: 1, opacity: 0.8 }} />
-                  ) : (
-                    <TrendingDownIcon sx={{ fontSize: { xs: 28, md: 40 }, mb: 1, opacity: 0.8 }} />
-                  )}
+                  <BusinessIcon sx={{ fontSize: { xs: 28, md: 40 }, mb: 1, opacity: 0.8 }} />
                   <Typography variant="h4" sx={{ 
                     fontWeight: 700, 
                     mb: 1,
                     fontSize: { xs: '1.2rem', md: '2rem' },
                     lineHeight: 1.2
                   }}>
-                    {formatNumber(summaryStats.totalGainLoss)}
+                    {summaryStats.uniqueMarkets}
                   </Typography>
                   <Typography variant="body2" sx={{ 
                     opacity: 0.9,
                     fontSize: { xs: '0.7rem', md: '0.875rem' }
                   }}>
-                    Total Gain/Loss CBM
+                    Unique Markets
                   </Typography>
                 </CardContent>
               </Card>
@@ -519,8 +467,7 @@ const CurrentLogStockView = ({ onBackClick }) => {
                 background: 'linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%)',
                 color: 'white',
                 height: { xs: '140px', md: '140px' },
-                width: '100%',
-                aspectRatio: { xs: '1', md: 'auto' }
+                width: '100%'
               }}>
                 <CardContent sx={{ 
                   textAlign: 'center', 
@@ -531,20 +478,20 @@ const CurrentLogStockView = ({ onBackClick }) => {
                   flexDirection: 'column',
                   justifyContent: 'center'
                 }}>
-                  <PieChartIcon sx={{ fontSize: { xs: 28, md: 40 }, mb: 1, opacity: 0.8 }} />
+                  <LocationOnIcon sx={{ fontSize: { xs: 28, md: 40 }, mb: 1, opacity: 0.8 }} />
                   <Typography variant="h4" sx={{ 
                     fontWeight: 700, 
                     mb: 1,
                     fontSize: { xs: '1.2rem', md: '2rem' },
                     lineHeight: 1.2
                   }}>
-                    {(summaryStats.avgGainLossPercent * 100).toFixed(1)}%
+                    {summaryStats.uniqueOrigins}
                   </Typography>
                   <Typography variant="body2" sx={{ 
                     opacity: 0.9,
                     fontSize: { xs: '0.7rem', md: '0.875rem' }
                   }}>
-                    Avg Gain/Loss %
+                    Unique Origins
                   </Typography>
                 </CardContent>
               </Card>
@@ -556,7 +503,7 @@ const CurrentLogStockView = ({ onBackClick }) => {
       {/* Charts Section */}
       {chartData && (
         <Box sx={{ mb: 4 }}>
-          {/* Forest-wise Log Count Chart */}
+          {/* Forest Distribution Chart */}
           <Card sx={{ 
             borderRadius: 2, 
             height: { xs: '300px', md: '400px' }, 
@@ -572,7 +519,7 @@ const CurrentLogStockView = ({ onBackClick }) => {
                 textAlign: 'center',
                 fontSize: { xs: '1rem', md: '1.25rem' }
               }}>
-                Forest-wise Log Count Distribution
+                Forest Distribution
               </Typography>
               <Box sx={{ 
                 height: 'calc(100% - 40px)',
@@ -594,17 +541,17 @@ const CurrentLogStockView = ({ onBackClick }) => {
                 },
               }}>
                 <Box sx={{ 
-                  minWidth: { xs: '900px', md: '100%' },
+                  minWidth: { xs: '600px', md: '100%' },
                   height: '100%'
                 }}>
                   <Bar
-                    key={`forest-chart-current`}
+                    key={`forest-chart-${containerNo}`}
                     data={{
                       labels: chartData.forest.labels,
                       datasets: [
                         {
-                          label: 'Log Count',
-                          data: chartData.forest.logCounts,
+                          label: 'Records Count',
+                          data: chartData.forest.data,
                           backgroundColor: 'rgba(27, 67, 50, 0.8)',
                           borderColor: 'rgba(27, 67, 50, 1)',
                           borderWidth: 1,
@@ -626,7 +573,7 @@ const CurrentLogStockView = ({ onBackClick }) => {
                           beginAtZero: true,
                           title: {
                             display: true,
-                            text: 'Log Count',
+                            text: 'Count',
                             font: {
                               size: fontSize
                             }
@@ -658,7 +605,7 @@ const CurrentLogStockView = ({ onBackClick }) => {
             </CardContent>
           </Card>
 
-          {/* CBM Comparison Chart */}
+          {/* Origin Distribution Chart */}
           <Card sx={{ 
             borderRadius: 2, 
             height: { xs: '300px', md: '400px' }, 
@@ -674,123 +621,7 @@ const CurrentLogStockView = ({ onBackClick }) => {
                 textAlign: 'center',
                 fontSize: { xs: '1rem', md: '1.25rem' }
               }}>
-                Forest-wise CBM Analysis
-              </Typography>
-              <Box sx={{ 
-                height: 'calc(100% - 40px)',
-                overflowX: { xs: 'auto', md: 'visible' },
-                overflowY: 'hidden',
-                '&::-webkit-scrollbar': {
-                  height: '8px',
-                },
-                '&::-webkit-scrollbar-track': {
-                  backgroundColor: '#f1f1f1',
-                  borderRadius: '4px',
-                },
-                '&::-webkit-scrollbar-thumb': {
-                  backgroundColor: '#c1c1c1',
-                  borderRadius: '4px',
-                  '&:hover': {
-                    backgroundColor: '#a8a8a8',
-                  },
-                },
-              }}>
-                <Box sx={{ 
-                  minWidth: { xs: '900px', md: '100%' },
-                  height: '100%'
-                }}>
-                  <Bar
-                    key={`cbm-chart-current`}
-                    data={{
-                      labels: chartData.forest.labels,
-                      datasets: [
-                        {
-                          label: 'Bordereau CBM',
-                          data: chartData.forest.bordereauCBM,
-                          backgroundColor: 'rgba(27, 67, 50, 0.8)',
-                          borderColor: 'rgba(27, 67, 50, 1)',
-                          borderWidth: 1,
-                          barThickness: barThickness,
-                          maxBarThickness: maxBarThickness,
-                        },
-                        {
-                          label: 'Actual CBM',
-                          data: chartData.forest.actualCBM,
-                          backgroundColor: 'rgba(45, 106, 79, 0.8)',
-                          borderColor: 'rgba(45, 106, 79, 1)',
-                          borderWidth: 1,
-                          barThickness: barThickness,
-                          maxBarThickness: maxBarThickness,
-                        },
-                      ],
-                    }}
-                    options={{
-                      responsive: true,
-                      maintainAspectRatio: false,
-                      plugins: {
-                        legend: {
-                          position: 'top',
-                          labels: {
-                            font: {
-                              size: fontSize
-                            }
-                          }
-                        },
-                      },
-                      scales: {
-                        y: {
-                          beginAtZero: true,
-                          title: {
-                            display: true,
-                            text: 'CBM',
-                            font: {
-                              size: fontSize
-                            }
-                          },
-                          ticks: {
-                            font: {
-                              size: tickFontSize
-                            }
-                          }
-                        },
-                        x: {
-                          ticks: {
-                            font: {
-                              size: tickFontSize
-                            }
-                          }
-                        }
-                      },
-                      layout: {
-                        padding: {
-                          left: isMobile ? 5 : 10,
-                          right: isMobile ? 5 : 10,
-                        }
-                      }
-                    }}
-                  />
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-
-          {/* FSC Distribution Chart */}
-          <Card sx={{ 
-            borderRadius: 2, 
-            height: { xs: '300px', md: '400px' }, 
-            mb: 3,
-            mx: 'auto',
-            maxWidth: '100%'
-          }}>
-            <CardContent sx={{ height: '100%', p: { xs: 2, md: 3 } }}>
-              <Typography variant="h6" sx={{ 
-                mb: 2, 
-                fontWeight: 600, 
-                color: '#1b4332',
-                textAlign: 'center',
-                fontSize: { xs: '1rem', md: '1.25rem' }
-              }}>
-                FSC Certification Distribution
+                Origin Distribution
               </Typography>
               <Box sx={{ 
                 height: 'calc(100% - 40px)', 
@@ -800,20 +631,28 @@ const CurrentLogStockView = ({ onBackClick }) => {
                 maxWidth: { xs: '250px', md: '350px' },
                 mx: 'auto'
               }}>
-                <Pie
-                  key={`fsc-chart-current`}
+                <Doughnut
+                  key={`origin-chart-${containerNo}`}
                   data={{
-                    labels: chartData.fscDistribution.labels,
+                    labels: chartData.origin.labels,
                     datasets: [
                       {
-                        data: chartData.fscDistribution.logCounts,
+                        data: chartData.origin.data,
                         backgroundColor: [
-                          'rgba(34, 197, 94, 0.8)',   // Green for FSC 100%
-                          'rgba(239, 68, 68, 0.8)',   // Red for Non-FSC
+                          'rgba(27, 67, 50, 0.8)',
+                          'rgba(45, 106, 79, 0.8)',
+                          'rgba(34, 197, 94, 0.8)',
+                          'rgba(16, 185, 129, 0.8)',
+                          'rgba(5, 150, 105, 0.8)',
+                          'rgba(4, 120, 87, 0.8)',
                         ],
                         borderColor: [
-                          'rgba(34, 197, 94, 1)',     // Green border for FSC 100%
-                          'rgba(239, 68, 68, 1)',     // Red border for Non-FSC
+                          'rgba(27, 67, 50, 1)',
+                          'rgba(45, 106, 79, 1)',
+                          'rgba(34, 197, 94, 1)',
+                          'rgba(16, 185, 129, 1)',
+                          'rgba(5, 150, 105, 1)',
+                          'rgba(4, 120, 87, 1)',
                         ],
                         borderWidth: 2,
                       },
@@ -837,7 +676,7 @@ const CurrentLogStockView = ({ onBackClick }) => {
                           label: function(context) {
                             const total = context.dataset.data.reduce((a, b) => a + b, 0);
                             const percentage = ((context.parsed / total) * 100).toFixed(1);
-                            return `${context.label}: ${context.parsed} logs (${percentage}%)`;
+                            return `${context.label}: ${context.parsed} records (${percentage}%)`;
                           }
                         }
                       }
@@ -850,76 +689,148 @@ const CurrentLogStockView = ({ onBackClick }) => {
         </Box>
       )}
 
-      {/* Data Tables with Tabs */}
-      {data && (
-        <Card sx={{ borderRadius: 2, overflow: 'hidden' }}>
-          <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-            <Tabs value={tabValue} onChange={handleTabChange} variant="scrollable" scrollButtons="auto">
-              <Tab label="Forest & Quality" />
-              <Tab label="Forest Summary" />
-              <Tab label="Forest & Origin" />
-              <Tab label="Forest & AAC" />
-              <Tab label="Forest Origin Loading" />
-              <Tab label="Company & Certificate" />
-              <Tab label="Detailed Data" />
-            </Tabs>
-          </Box>
-
-          {data.map((dataset, index) => (
-            <TabPanel key={index} value={tabValue} index={index}>
-              {dataset && dataset.length > 0 && (
-                <TableContainer sx={{ maxHeight: '70vh' }}>
-                  <Table stickyHeader>
-                    <TableHead>
-                      <TableRow>
-                        {Object.keys(dataset[0]).map((key) => (
-                          <TableCell 
-                            key={key}
-                            sx={{ 
-                              backgroundColor: '#1b4332', 
-                              color: '#ffffff', 
-                              fontWeight: 600,
-                              fontSize: '0.9rem',
-                              borderBottom: 'none'
-                            }}
-                          >
-                            {key.replace(/_/g, ' ')}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {dataset.map((row, rowIndex) => (
-                        <TableRow 
-                          key={rowIndex}
-                          sx={{ 
-                            '&:nth-of-type(odd)': { backgroundColor: '#f8f9fa' },
-                            '&:hover': { 
-                              backgroundColor: '#e8f5e9',
-                              transition: 'background-color 0.2s ease'
-                            }
-                          }}
-                        >
-                          {Object.entries(row).map(([key, value], cellIndex) => (
-                            <TableCell 
-                              key={cellIndex}
-                              sx={{ 
-                                fontSize: '0.9rem', 
-                                borderBottom: '1px solid #e0e0e0',
-                                fontWeight: (key.includes('TOTAL') || String(value).includes('GRAND TOTAL')) ? 600 : 400
-                              }}
-                            >
-                              {key.includes('CBM') || key.includes('COUNT') ? formatNumber(value) : (value || '')}
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              )}
-            </TabPanel>
-          ))}
+      {/* Data Table */}
+      {data && data.length > 0 && (
+        <Card sx={{ 
+          borderRadius: 2, 
+          overflow: 'hidden',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+        }}>
+          <TableContainer sx={{ maxHeight: '70vh' }}>
+            <Table stickyHeader>
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ 
+                    backgroundColor: '#1b4332', 
+                    color: '#ffffff', 
+                    fontWeight: 600,
+                    fontSize: '0.9rem',
+                    borderBottom: 'none'
+                  }}>
+                    Container No
+                  </TableCell>
+                  <TableCell sx={{ 
+                    backgroundColor: '#1b4332', 
+                    color: '#ffffff', 
+                    fontWeight: 600,
+                    fontSize: '0.9rem',
+                    borderBottom: 'none'
+                  }}>
+                    Market Name
+                  </TableCell>
+                  <TableCell sx={{ 
+                    backgroundColor: '#1b4332', 
+                    color: '#ffffff', 
+                    fontWeight: 600,
+                    fontSize: '0.9rem',
+                    borderBottom: 'none'
+                  }}>
+                    Market Group
+                  </TableCell>
+                  <TableCell sx={{ 
+                    backgroundColor: '#1b4332', 
+                    color: '#ffffff', 
+                    fontWeight: 600,
+                    fontSize: '0.9rem',
+                    borderBottom: 'none'
+                  }}>
+                    Forest
+                  </TableCell>
+                  <TableCell sx={{ 
+                    backgroundColor: '#1b4332', 
+                    color: '#ffffff', 
+                    fontWeight: 600,
+                    fontSize: '0.9rem',
+                    borderBottom: 'none'
+                  }}>
+                    AAC
+                  </TableCell>
+                  <TableCell sx={{ 
+                    backgroundColor: '#1b4332', 
+                    color: '#ffffff', 
+                    fontWeight: 600,
+                    fontSize: '0.9rem',
+                    borderBottom: 'none'
+                  }}>
+                    Origin
+                  </TableCell>
+                  <TableCell sx={{ 
+                    backgroundColor: '#1b4332', 
+                    color: '#ffffff', 
+                    fontWeight: 600,
+                    fontSize: '0.9rem',
+                    borderBottom: 'none'
+                  }}>
+                    Essence
+                  </TableCell>
+                  <TableCell sx={{ 
+                    backgroundColor: '#1b4332', 
+                    color: '#ffffff', 
+                    fontWeight: 600,
+                    fontSize: '0.9rem',
+                    borderBottom: 'none'
+                  }}>
+                    Entry User
+                  </TableCell>
+                  <TableCell sx={{ 
+                    backgroundColor: '#1b4332', 
+                    color: '#ffffff', 
+                    fontWeight: 600,
+                    fontSize: '0.9rem',
+                    borderBottom: 'none'
+                  }}>
+                    Loading Date
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {data.map((row, index) => (
+                  <TableRow 
+                    key={index}
+                    sx={{ 
+                      '&:nth-of-type(odd)': { backgroundColor: '#f8f9fa' },
+                      '&:hover': { 
+                        backgroundColor: '#e8f5e9',
+                        transition: 'background-color 0.2s ease'
+                      }
+                    }}
+                  >
+                    <TableCell sx={{ 
+                      fontWeight: 500,
+                      fontSize: '0.9rem',
+                      borderBottom: '1px solid #e0e0e0'
+                    }}>
+                      {row.CONTAINER_NO || ''}
+                    </TableCell>
+                    <TableCell sx={{ fontSize: '0.9rem', borderBottom: '1px solid #e0e0e0' }}>
+                      {row.MARKETNAME || ''}
+                    </TableCell>
+                    <TableCell sx={{ fontSize: '0.9rem', borderBottom: '1px solid #e0e0e0' }}>
+                      {row.MARKETGROUP || ''}
+                    </TableCell>
+                    <TableCell sx={{ fontSize: '0.9rem', borderBottom: '1px solid #e0e0e0' }}>
+                      {row.FOREST || ''}
+                    </TableCell>
+                    <TableCell sx={{ fontSize: '0.9rem', borderBottom: '1px solid #e0e0e0' }}>
+                      {row.AAC || ''}
+                    </TableCell>
+                    <TableCell sx={{ fontSize: '0.9rem', borderBottom: '1px solid #e0e0e0' }}>
+                      {row.ORIGIN || ''}
+                    </TableCell>
+                    <TableCell sx={{ fontSize: '0.9rem', borderBottom: '1px solid #e0e0e0' }}>
+                      {row.ESSENCE || ''}
+                    </TableCell>
+                    <TableCell sx={{ fontSize: '0.9rem', borderBottom: '1px solid #e0e0e0' }}>
+                      {row.ENTRYUSER || ''}
+                    </TableCell>
+                    <TableCell sx={{ fontSize: '0.9rem', borderBottom: '1px solid #e0e0e0' }}>
+                      {row.LOADING_DATE ? new Date(row.LOADING_DATE).toLocaleDateString() : ''}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
         </Card>
       )}
 
@@ -927,12 +838,12 @@ const CurrentLogStockView = ({ onBackClick }) => {
       {data && data.length === 0 && (
         <Card sx={{ borderRadius: 2, textAlign: 'center', py: 8 }}>
           <CardContent>
-            <InventoryIcon sx={{ fontSize: 64, color: '#ccc', mb: 2 }} />
+            <LinkIcon sx={{ fontSize: 64, color: '#ccc', mb: 2 }} />
             <Typography variant="h6" color="textSecondary">
-              No current log stock data found
+              No AAC connection data found for container {containerNo}
             </Typography>
             <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-              Try refreshing the data or check if logs are available in the system.
+              Try checking the container number or verify if the container exists in the system.
             </Typography>
           </CardContent>
         </Card>
@@ -941,4 +852,4 @@ const CurrentLogStockView = ({ onBackClick }) => {
   );
 };
 
-export default CurrentLogStockView;
+export default AacConnectionView;

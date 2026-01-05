@@ -23,6 +23,7 @@ import ForestIcon from '@mui/icons-material/Forest';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import ContentCutIcon from '@mui/icons-material/ContentCut';
+import DashboardIcon from '@mui/icons-material/Dashboard';
 import StickerView from '../container/StickerView';
 import PackingListView from '../container/PackingListView';
 import LoadListView from '../container/LoadListView';
@@ -34,18 +35,24 @@ import PendingSubOrdersView from '../orders/PendingSubOrdersView';
 import CurrentMonthSummaryView from '../summary/CurrentMonthSummaryView';
 import DateWiseSummaryView from '../summary/DateWiseSummaryView';
 import PlywoodDailyOperationsSummaryView from '../summary/PlywoodDailyOperationsSummaryView';
+import RejectedPcsSummaryView from '../summary/RejectedPcsSummaryView';
 import CurrentLogStockView from '../logs/CurrentLogStockView';
 import LogClosingStockView from '../logs/LogClosingStockView';
 import LogBuyingSummaryView from '../logs/LogBuyingSummaryView';
 import LogInvoiceSummaryView from '../logs/LogInvoiceSummaryView';
 import LogCuttingSummaryView from '../logs/LogCuttingSummaryView';
+import AacConnectionView from '../container/AacConnectionView';
+import ContainerLoadingView from '../container/ContainerLoadingView';
+import ContainerMonthWiseView from '../container/ContainerMonthWiseView';
+import UnifiedDashboard from './UnifiedDashboard';
 
 const DRAWER_WIDTH = 260;
 
 const Dashboard = ({ user, onLogout }) => {
-  const [activeView, setActiveView] = useState('sticker');
+  const [activeView, setActiveView] = useState('dashboard'); // Changed default to dashboard
+  const [activeSection, setActiveSection] = useState(null); // Track which section we're in
   const [drawerOpen, setDrawerOpen] = useState(false); // Start closed on mobile
-  const [logisticsOpen, setLogisticsOpen] = useState(true); // Start expanded
+  const [logisticsOpen, setLogisticsOpen] = useState(false); // Start collapsed
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [logsOpen, setLogsOpen] = useState(false);
 
@@ -70,6 +77,13 @@ const Dashboard = ({ user, onLogout }) => {
   }, []);
 
   const menuSections = [
+    {
+      heading: 'Dashboard',
+      key: 'dashboard',
+      items: [
+        { id: 'dashboard', label: 'Main Dashboard', icon: <DashboardIcon /> },
+      ]
+    },
     {
       heading: 'Logistics',
       key: 'logistics',
@@ -113,48 +127,88 @@ const Dashboard = ({ user, onLogout }) => {
 
   const handleViewChange = (viewId) => {
     setActiveView(viewId);
+    
+    // Determine which section this view belongs to
+    const logisticsViews = ['sticker', 'packing', 'load', 'main', 'orderlist', 'orderlistdelivery', 'pendingorders', 'pendingsuborders'];
+    const summaryViews = ['currentmonthsummary', 'datewisesummary', 'plywooddailyoperationssummary'];
+    const logsViews = ['currentlogstock', 'logclosingstock', 'logbuyingsummary', 'loginvoicesummary', 'logcuttingsummary'];
+    
+    if (logisticsViews.includes(viewId)) {
+      setActiveSection('logistics');
+    } else if (summaryViews.includes(viewId)) {
+      setActiveSection('summary');
+    } else if (logsViews.includes(viewId)) {
+      setActiveSection('logs');
+    } else {
+      setActiveSection(null);
+    }
+    
     // Close drawer on mobile after selection
     if (window.innerWidth < 900) {
       setDrawerOpen(false);
     }
   };
 
+  const handleBackToSection = () => {
+    if (activeSection) {
+      setActiveView('section-' + activeSection);
+    } else {
+      setActiveView('dashboard');
+    }
+  };
+
   const renderActiveView = () => {
     switch (activeView) {
+      case 'dashboard':
+        return <UnifiedDashboard user={user} onSectionClick={handleViewChange} />;
+      case 'section-logistics':
+        return <UnifiedDashboard user={user} onSectionClick={handleViewChange} activeSection="logistics" onBackClick={() => setActiveView('dashboard')} />;
+      case 'section-summary':
+        return <UnifiedDashboard user={user} onSectionClick={handleViewChange} activeSection="summary" onBackClick={() => setActiveView('dashboard')} />;
+      case 'section-logs':
+        return <UnifiedDashboard user={user} onSectionClick={handleViewChange} activeSection="logs" onBackClick={() => setActiveView('dashboard')} />;
       case 'sticker':
-        return <StickerView />;
+        return <StickerView onBackClick={handleBackToSection} />;
       case 'packing':
-        return <PackingListView />;
+        return <PackingListView onBackClick={handleBackToSection} />;
       case 'load':
-        return <LoadListView />;
+        return <LoadListView onBackClick={handleBackToSection} />;
       case 'main':
-        return <MainListView />;
+        return <MainListView onBackClick={handleBackToSection} />;
       case 'orderlist':
-        return <OrderListView />;
+        return <OrderListView onBackClick={handleBackToSection} />;
       case 'orderlistdelivery':
-        return <OrderListDeliveryView />;
+        return <OrderListDeliveryView onBackClick={handleBackToSection} />;
       case 'pendingorders':
-        return <PendingOrdersView />;
+        return <PendingOrdersView onBackClick={handleBackToSection} />;
       case 'pendingsuborders':
-        return <PendingSubOrdersView />;
+        return <PendingSubOrdersView onBackClick={handleBackToSection} />;
+      case 'aacconnection':
+        return <AacConnectionView onBackClick={handleBackToSection} />;
+      case 'containerloading':
+        return <ContainerLoadingView onBackClick={handleBackToSection} />;
+      case 'containermonthwise':
+        return <ContainerMonthWiseView onBackClick={handleBackToSection} />;
       case 'currentmonthsummary':
-        return <CurrentMonthSummaryView />;
+        return <CurrentMonthSummaryView onBackClick={handleBackToSection} />;
       case 'datewisesummary':
-        return <DateWiseSummaryView />;
+        return <DateWiseSummaryView onBackClick={handleBackToSection} />;
       case 'plywooddailyoperationssummary':
-        return <PlywoodDailyOperationsSummaryView />;
+        return <PlywoodDailyOperationsSummaryView onBackClick={handleBackToSection} />;
+      case 'rejectedpcssummary':
+        return <RejectedPcsSummaryView onBackClick={handleBackToSection} />;
       case 'currentlogstock':
-        return <CurrentLogStockView />;
+        return <CurrentLogStockView onBackClick={handleBackToSection} />;
       case 'logclosingstock':
-        return <LogClosingStockView />;
+        return <LogClosingStockView onBackClick={handleBackToSection} />;
       case 'logbuyingsummary':
-        return <LogBuyingSummaryView />;
+        return <LogBuyingSummaryView onBackClick={handleBackToSection} />;
       case 'loginvoicesummary':
-        return <LogInvoiceSummaryView />;
+        return <LogInvoiceSummaryView onBackClick={handleBackToSection} />;
       case 'logcuttingsummary':
-        return <LogCuttingSummaryView />;
+        return <LogCuttingSummaryView onBackClick={handleBackToSection} />;
       default:
-        return <StickerView />;
+        return <UnifiedDashboard user={user} onSectionClick={handleViewChange} />;
     }
   };
 
@@ -200,7 +254,10 @@ const Dashboard = ({ user, onLogout }) => {
         {menuSections.map((section, sectionIndex) => {
           let isOpen, setOpen;
           
-          if (section.key === 'logistics') {
+          if (section.key === 'dashboard') {
+            isOpen = true; // Dashboard section always open
+            setOpen = () => {}; // No toggle for dashboard
+          } else if (section.key === 'logistics') {
             isOpen = logisticsOpen;
             setOpen = setLogisticsOpen;
           } else if (section.key === 'summary') {
@@ -213,31 +270,47 @@ const Dashboard = ({ user, onLogout }) => {
           
           return (
             <Box key={sectionIndex} sx={{ mb: 2 }}>
-              {/* Section Heading - Clickable */}
-              <ListItemButton
-                onClick={() => setOpen(!isOpen)}
-                sx={{
-                  borderRadius: 1.5,
-                  py: { xs: 1, sm: 1.5 },
-                  px: { xs: 1.5, sm: 2 },
-                  mb: 0.5,
-                  '&:hover': {
-                    backgroundColor: '#f5f5f5',
-                  }
-                }}
-              >
-                <ListItemText 
-                  primary={section.heading}
-                  primaryTypographyProps={{
-                    fontWeight: 700,
-                    fontSize: '0.85rem',
-                    letterSpacing: '0.5px',
-                    textTransform: 'uppercase',
-                    color: '#1b4332'
+              {/* Section Heading - Clickable (except for dashboard) */}
+              {section.key !== 'dashboard' ? (
+                <ListItemButton
+                  onClick={() => setOpen(!isOpen)}
+                  sx={{
+                    borderRadius: 1.5,
+                    py: { xs: 1, sm: 1.5 },
+                    px: { xs: 1.5, sm: 2 },
+                    mb: 0.5,
+                    '&:hover': {
+                      backgroundColor: '#f5f5f5',
+                    }
                   }}
-                />
-                {isOpen ? <ExpandLess sx={{ color: '#1b4332' }} /> : <ExpandMore sx={{ color: '#1b4332' }} />}
-              </ListItemButton>
+                >
+                  <ListItemText 
+                    primary={section.heading}
+                    primaryTypographyProps={{
+                      fontWeight: 700,
+                      fontSize: '0.85rem',
+                      letterSpacing: '0.5px',
+                      textTransform: 'uppercase',
+                      color: '#1b4332'
+                    }}
+                  />
+                  {isOpen ? <ExpandLess sx={{ color: '#1b4332' }} /> : <ExpandMore sx={{ color: '#1b4332' }} />}
+                </ListItemButton>
+              ) : (
+                <Box sx={{ px: { xs: 1.5, sm: 2 }, py: { xs: 1, sm: 1.5 }, mb: 0.5 }}>
+                  <Typography
+                    sx={{
+                      fontWeight: 700,
+                      fontSize: '0.85rem',
+                      letterSpacing: '0.5px',
+                      textTransform: 'uppercase',
+                      color: '#1b4332'
+                    }}
+                  >
+                    {section.heading}
+                  </Typography>
+                </Box>
+              )}
               
               {/* Section Items - Collapsible */}
               <Collapse in={isOpen} timeout="auto" unmountOnExit>

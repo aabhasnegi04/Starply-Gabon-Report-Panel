@@ -2,18 +2,19 @@ import React, { useState, useRef } from 'react';
 import { 
   Container, Card, CardContent, Typography, TextField, Button, Box, 
   CircularProgress, Alert, Table, TableBody, TableCell, TableContainer, 
-  TableHead, TableRow, Paper
+  TableHead, TableRow, Paper, IconButton
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import PrintIcon from '@mui/icons-material/Print';
 import DownloadIcon from '@mui/icons-material/Download';
 import InventoryIcon from '@mui/icons-material/Inventory';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useReactToPrint } from 'react-to-print';
 import * as XLSX from 'xlsx';
 import PackingListTable from './PackingListTable';
 import { API_URL } from '../../config';
 
-const PackingListView = () => {
+const PackingListView = ({ onBackClick }) => {
   const [container, setContainer] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -164,6 +165,18 @@ const PackingListView = () => {
       }} className="print-hide">
         <CardContent sx={{ p: { xs: 2, sm: 4 } }}>
           <Box display="flex" alignItems="center" mb={{ xs: 2, sm: 3 }}>
+            {onBackClick && (
+              <IconButton 
+                onClick={onBackClick}
+                sx={{ 
+                  mr: 2, 
+                  color: '#1b4332',
+                  '&:hover': { backgroundColor: '#f5f5f5' }
+                }}
+              >
+                <ArrowBackIcon />
+              </IconButton>
+            )}
             <SearchIcon sx={{ fontSize: { xs: 24, sm: 28 }, color: '#1b4332', mr: 2 }} />
             <Typography variant="h4" sx={{ 
               fontWeight: 600, 
@@ -353,6 +366,11 @@ const PackingListView = () => {
                 <Typography sx={{ fontSize: { xs: '0.75rem', sm: '0.85rem' }, mb: 0.3 }}>
                   {data.workOrderInfo?.SHIPTO_PARTYNAME || data.containerInfo?.CONSIGNEE || ''}
                 </Typography>
+                {data.workOrderInfo?.Client_Name && (
+                  <Typography sx={{ fontSize: { xs: '0.75rem', sm: '0.85rem' }, mb: 0.3 }}>
+                    P/C : {data.workOrderInfo.Client_Name}
+                  </Typography>
+                )}
                 {(data.workOrderInfo?.SHIPTOADDRESS || data.workOrderInfo?.shiptoaddress || data.workOrderInfo?.ShipToAddress) && (
                   <Typography sx={{ fontSize: { xs: '0.75rem', sm: '0.85rem' }, mb: 0.3 }}>
                     {data.workOrderInfo?.SHIPTOADDRESS || data.workOrderInfo?.shiptoaddress || data.workOrderInfo?.ShipToAddress || ''}

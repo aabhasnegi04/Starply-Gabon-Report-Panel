@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
   Container, Card, CardContent, Typography, Button, Box, 
   CircularProgress, Alert, Table, TableBody, TableCell, TableContainer, 
-  TableHead, TableRow, Paper, Chip
+  TableHead, TableRow, Paper, Chip, IconButton
 } from '@mui/material';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -11,10 +11,11 @@ import SearchIcon from '@mui/icons-material/Search';
 import DownloadIcon from '@mui/icons-material/Download';
 import ListAltIcon from '@mui/icons-material/ListAlt';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import * as XLSX from 'xlsx';
 import { API_URL } from '../../config';
 
-const OrderListDeliveryView = () => {
+const OrderListDeliveryView = ({ onBackClick }) => {
   const [fromDate, setFromDate] = useState(null);
   const [toDate, setToDate] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -83,6 +84,18 @@ const OrderListDeliveryView = () => {
       }}>
         <CardContent sx={{ p: 4 }}>
           <Box display="flex" alignItems="center" mb={3}>
+            {onBackClick && (
+              <IconButton 
+                onClick={onBackClick}
+                sx={{ 
+                  mr: 2, 
+                  color: '#1b4332',
+                  '&:hover': { backgroundColor: '#f5f5f5' }
+                }}
+              >
+                <ArrowBackIcon />
+              </IconButton>
+            )}
             <Box sx={{ 
               background: 'linear-gradient(135deg, #1b4332 0%, #2d6a4f 100%)',
               borderRadius: 2,
