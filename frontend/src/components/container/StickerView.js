@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { TextField, Button, Container, Box, Card, CardContent, CircularProgress, Alert, Typography, IconButton } from '@mui/material';
+import { TextField, Button, Container, Box, Card, CardContent, CircularProgress, Alert, Typography, IconButton, FormControlLabel, Checkbox } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import PrintIcon from '@mui/icons-material/Print';
 import DownloadIcon from '@mui/icons-material/Download';
@@ -15,6 +15,7 @@ const StickerView = ({ onBackClick }) => {
   const [stickers, setStickers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isLandscape, setIsLandscape] = useState(true);
   const printRef = useRef();
 
   const handlePrint = useReactToPrint({
@@ -22,13 +23,28 @@ const StickerView = ({ onBackClick }) => {
     documentTitle: ' ',
     pageStyle: `
       @page { 
-        size: A4; 
-        margin: 10mm; 
+        size: ${isLandscape ? 'A4 landscape' : 'A4 portrait'}; 
+        margin: ${isLandscape ? '3mm' : '10mm'}; 
       }
       @media print {
-        body { -webkit-print-color-adjust: exact; }
-        .MuiContainer-root, .MuiGrid-root { padding: 0 !important; margin: 0 !important; }
-        .sticker-print-page { page-break-after: always; break-after: page; }
+        body { 
+          -webkit-print-color-adjust: exact; 
+          print-color-adjust: exact;
+        }
+        .MuiContainer-root, .MuiGrid-root { 
+          padding: 0 !important; 
+          margin: 0 !important; 
+        }
+        .sticker-print-page { 
+          page-break-after: always !important; 
+          break-after: page !important; 
+          page-break-inside: avoid !important;
+          break-inside: avoid !important;
+        }
+        .sticker-print-page:last-child {
+          page-break-after: auto !important;
+          break-after: auto !important;
+        }
       }
     `
   });
@@ -90,7 +106,8 @@ const StickerView = ({ onBackClick }) => {
       const stickerList = mainStickerRows.map(row => {
         // Get CERTIFICATION_LEGAL from mainHeader (recordset 1) - it's the same for all pallets
         const certificationLegal = mainHeader.CERTIFICATION_LEGAL || '';
-        const isFSC = certificationLegal.toUpperCase().includes('FSC');
+        // Only add FSC if CERTIFICATION_LEGAL exactly equals 'FSC' (same logic as PackingListView)
+        const isFSC = certificationLegal.toUpperCase() === 'FSC';
         
         // Add FSC certification to certificates if it's FSC
         const allCertificates = [...certificates];
@@ -107,7 +124,7 @@ const StickerView = ({ onBackClick }) => {
           thickness: row.THICKNESS,
           quality: row.QUALITY,
           pcs: row.PCS,
-          cbm: parseFloat(row.CBM || 0).toFixed(3),
+          cbm: row.CBM ? parseFloat(row.CBM).toFixed(3) : '0.000',
           species: row.SPECIES,
           glue: row.GLUE,
           productClass: row.CLASS,
@@ -239,6 +256,28 @@ const StickerView = ({ onBackClick }) => {
                 </Box>
               </Box>
               <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={isLandscape}
+                      onChange={(e) => setIsLandscape(e.target.checked)}
+                      sx={{
+                        color: '#1b4332',
+                        '&.Mui-checked': {
+                          color: '#1b4332',
+                        },
+                      }}
+                    />
+                  }
+                  label="Landscape Printing"
+                  sx={{
+                    '& .MuiFormControlLabel-label': {
+                      fontSize: '0.95rem',
+                      fontWeight: 500,
+                      color: '#1b4332'
+                    }
+                  }}
+                />
                 <Button
                   variant="contained"
                   size="large"
@@ -331,7 +370,7 @@ const StickerView = ({ onBackClick }) => {
                     width: '208.33%',
                     marginBottom: '-52%'
                   }}>
-                    <Sticker {...sticker} />
+                    <Sticker {...sticker} isLandscape={isLandscape} />
                   </Box>
                 </Card>
               </Box>
@@ -363,8 +402,8 @@ const StickerView = ({ onBackClick }) => {
       {/* Hidden Print Area - Visually hidden but available for printing */}
       <div ref={printRef} className="print-only">
         {stickers.map((sticker, idx) => (
-          <div key={idx} className="sticker-print-page">
-            <Sticker {...sticker} />
+          <div key={idx} className={`sticker-print-page ${isLandscape ? 'sticker-landscape' : ''}`}>
+            <Sticker {...sticker} isLandscape={isLandscape} />
           </div>
         ))}
       </div>

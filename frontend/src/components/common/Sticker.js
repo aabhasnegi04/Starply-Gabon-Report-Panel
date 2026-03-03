@@ -6,10 +6,197 @@ const Sticker = ({
   length, width, thickness,
   quality, pcs, cbm, species,
   glue, productClass, lotNumber, totalPallets, orderNo,
-  certificates = []
+  certificates = [],
+  isLandscape = false
 }) => {
 
 
+  if (isLandscape) {
+    return (
+      <Box sx={{
+        width: '100%',
+        maxWidth: '297mm', // A4 landscape width
+        height: '210mm', // A4 landscape height
+        p: '8mm',
+        mx: 'auto',
+        background: '#fff',
+        position: 'relative',
+        display: 'flex',
+        flexDirection: 'column',
+        boxSizing: 'border-box'
+      }}>
+        {/* Top Header - Company Info in landscape */}
+        <Box sx={{ 
+          display: 'grid', 
+          gridTemplateColumns: '1fr 1fr 1fr', 
+          gap: 3, 
+          mb: 2,
+          pb: 1.5,
+          borderBottom: '3px solid #2e3192'
+        }}>
+          <Box>
+            <Typography sx={{ fontWeight: 700, color: '#2e3192', fontSize: '1rem', mb: 0.5, letterSpacing: '0.5px' }}>
+              SHIPPER :
+            </Typography>
+            <Typography sx={{ fontSize: '1.2rem', fontWeight: 600, textTransform: 'uppercase' }}>
+              {company || 'N/A'}
+            </Typography>
+          </Box>
+          <Box>
+            <Typography sx={{ fontWeight: 700, color: '#2e3192', fontSize: '1rem', mb: 0.5, letterSpacing: '0.5px' }}>
+              CONSIGNEE :
+            </Typography>
+            <Typography sx={{ fontSize: '1.2rem', fontWeight: 600, textTransform: 'uppercase' }}>
+              {consignee || 'N/A'}
+            </Typography>
+          </Box>
+          <Box>
+            <Typography sx={{ fontWeight: 700, color: '#2e3192', fontSize: '1rem', mb: 0.5, letterSpacing: '0.5px' }}>
+              DESTINATION :
+            </Typography>
+            <Typography sx={{ fontSize: '1.2rem', fontWeight: 600, textTransform: 'uppercase' }}>
+              {destination || 'N/A'}
+            </Typography>
+          </Box>
+        </Box>
+
+        {/* Size - Emphasized and centered */}
+        <Box sx={{ 
+          p: 2, 
+          backgroundColor: '#f5f5f5', 
+          borderLeft: '5px solid #2e3192',
+          borderRadius: '4px',
+          textAlign: 'center',
+          mb: 2
+        }}>
+          <Typography sx={{ 
+            color: '#2e3192', 
+            fontWeight: 700, 
+            fontSize: '1.1rem',
+            mb: 1,
+            letterSpacing: '0.5px',
+            textTransform: 'uppercase'
+          }}>
+            SIZE (MM) (LONGUEUR X LARGEUR X ÉPAISSEUR):
+          </Typography>
+          <Typography sx={{ 
+            fontSize: '2.5rem', 
+            fontWeight: 700,
+            color: '#000',
+            letterSpacing: '2px'
+          }}>
+            {length} X {width} X {thickness}
+          </Typography>
+        </Box>
+
+        {/* All content in one row - but with better spacing */}
+        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr', gap: 2, mb: 2 }}>
+          <Box sx={{ p: 1.5, border: '2px solid #e0e0e0', borderRadius: '4px' }}>
+            <Typography sx={{ color: '#2e3192', fontWeight: 700, fontSize: '0.9rem', mb: 0.5, textTransform: 'uppercase' }}>
+              QUALITY :
+            </Typography>
+            <Typography sx={{ fontSize: '1.2rem', fontWeight: 600, textTransform: 'uppercase' }}>
+              {quality || 'N/A'}
+            </Typography>
+          </Box>
+          <Box sx={{ p: 1.5, border: '2px solid #e0e0e0', borderRadius: '4px' }}>
+            <Typography sx={{ color: '#2e3192', fontWeight: 700, fontSize: '0.9rem', mb: 0.5, textTransform: 'uppercase' }}>
+              PIÈCES / CUBAGE (M³) :
+            </Typography>
+            <Typography sx={{ fontSize: '1.2rem', fontWeight: 600 }}>
+              {pcs || 'N/A'} / {cbm ? parseFloat(cbm).toFixed(3) : 'N/A'}
+            </Typography>
+          </Box>
+          <Box sx={{ p: 1.5, border: '2px solid #e0e0e0', borderRadius: '4px' }}>
+            <Typography sx={{ color: '#2e3192', fontWeight: 700, fontSize: '0.9rem', mb: 0.5, textTransform: 'uppercase' }}>
+              ESSENCE :
+            </Typography>
+            <Typography sx={{ fontSize: '1.2rem', fontWeight: 600, textTransform: 'uppercase' }}>
+              {species || 'N/A'}
+            </Typography>
+          </Box>
+          <Box sx={{ p: 1.5, border: '2px solid #e0e0e0', borderRadius: '4px' }}>
+            <Typography sx={{ color: '#2e3192', fontWeight: 700, fontSize: '0.9rem', mb: 0.5, textTransform: 'uppercase' }}>
+              TYPE DE COLLE / CLASSE :
+            </Typography>
+            <Typography sx={{ fontSize: '1.2rem', fontWeight: 600, textTransform: 'uppercase' }}>
+              {glue} / {productClass}
+            </Typography>
+          </Box>
+          <Box sx={{ p: 1.5, border: '2px solid #e0e0e0', borderRadius: '4px' }}>
+            <Typography sx={{ color: '#2e3192', fontWeight: 700, fontSize: '0.9rem', mb: 0.5, textTransform: 'uppercase' }}>
+              NUMÉRO DE PALETTE :
+            </Typography>
+            <Typography sx={{ fontSize: '1.2rem', fontWeight: 600 }}>
+              {lotNumber} / {totalPallets}
+            </Typography>
+          </Box>
+          <Box sx={{ p: 1.5, border: '2px solid #e0e0e0', borderRadius: '4px' }}>
+            <Typography sx={{ color: '#2e3192', fontWeight: 700, fontSize: '0.9rem', mb: 0.5, textTransform: 'uppercase' }}>
+              PO. NO. :
+            </Typography>
+            <Typography sx={{ fontSize: '1.2rem', fontWeight: 600, textTransform: 'uppercase' }}>
+              {orderNo || 'N/A'}
+            </Typography>
+          </Box>
+        </Box>
+
+        {/* Formaldehyde Emission - Only for PF glue (landscape) */}
+        {glue && glue.toUpperCase().includes('PF') && (
+          <Box sx={{ 
+            p: 1.5, 
+            border: '2px solid #2e3192', 
+            borderRadius: '4px',
+            backgroundColor: '#f8f9ff',
+            mb: 2
+          }}>
+            <Typography sx={{ 
+              color: '#2e3192', 
+              fontWeight: 700, 
+              fontSize: '0.85rem',
+              textAlign: 'center',
+              lineHeight: 1.3
+            }}>
+              Formaldehyde emission complies with EU REACH Regulation (EU)2023/1464 - ≤ 0.062 mg/m³
+            </Typography>
+          </Box>
+        )}
+
+        {/* Certificates - Each on separate line like portrait */}
+        {certificates.filter(Boolean).length > 0 && (
+          <Box sx={{ 
+            p: 1.5, 
+            border: '3px solid #2e3192',
+            borderRadius: '4px',
+            backgroundColor: '#f8f9ff',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 0.5,
+            alignItems: 'center'
+          }}>
+            {certificates.filter(Boolean).map((val, idx) => (
+              <Typography 
+                key={idx}
+                sx={{ 
+                  color: '#2e3192', 
+                  fontWeight: 600, 
+                  fontSize: '0.9rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.3px',
+                  textAlign: 'center',
+                  lineHeight: 1.3
+                }}
+              >
+                {val}
+              </Typography>
+            ))}
+          </Box>
+        )}
+      </Box>
+    );
+  }
+
+  // Portrait layout (original)
   return (
     <Box sx={{
       width: '100%',
@@ -104,7 +291,7 @@ const Sticker = ({
               NOMBRE DE PIÈCES / CUBAGE (M³) :
             </Typography>
             <Typography sx={{ fontSize: '1.5rem', fontWeight: 600 }}>
-              {pcs || 'N/A'} / {cbm || 'N/A'}
+              {pcs || 'N/A'} / {cbm ? parseFloat(cbm).toFixed(3) : 'N/A'}
             </Typography>
           </Box>
         </Box>
@@ -128,6 +315,26 @@ const Sticker = ({
             </Typography>
           </Box>
         </Box>
+
+        {/* Formaldehyde Emission - Only for PF glue */}
+        {glue && glue.toUpperCase().includes('PF') && (
+          <Box sx={{ 
+            p: 1.5, 
+            border: '2px solid #2e3192', 
+            borderRadius: '4px',
+            backgroundColor: '#f8f9ff'
+          }}>
+            <Typography sx={{ 
+              color: '#2e3192', 
+              fontWeight: 700, 
+              fontSize: '0.95rem',
+              textAlign: 'center',
+              lineHeight: 1.4
+            }}>
+              Formaldehyde emission complies with EU REACH Regulation (EU)2023/1464 - ≤ 0.062 mg/m³
+            </Typography>
+          </Box>
+        )}
 
         {/* Palette Number and PO */}
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getOrderListByDate, getOrderListByDeliveryDate, getPendingOrders, getPendingSubOrders, getCurrentMonthSummary, getDateWiseSummary, getPlywoodDailyOperationsSummary, executeStoredProcedure } = require('../controllers/orderController');
+const { getOrderListByDate, getOrderListByDeliveryDate, getPendingOrders, getPendingSubOrders, getCurrentMonthSummary, getDateWiseSummary, getPlywoodDailyOperationsSummary, executeStoredProcedure, getActiveYears } = require('../controllers/orderController');
 
 // POST /order/listbydate
 router.post('/listbydate', getOrderListByDate);
@@ -25,5 +25,8 @@ router.post('/plywooddailyoperationssummary', getPlywoodDailyOperationsSummary);
 
 // POST /order/execute - Generic stored procedure execution
 router.post('/execute', executeStoredProcedure);
+
+// GET /order/active-years - Get active years from tb_m_year table
+router.get('/active-years', getActiveYears);
 
 module.exports = router;

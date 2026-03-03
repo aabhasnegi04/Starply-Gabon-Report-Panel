@@ -269,4 +269,21 @@ async function executeStoredProcedure(req, res) {
   }
 }
 
-module.exports = { getOrderListByDate, getOrderListByDeliveryDate, getPendingOrders, getPendingSubOrders, getCurrentMonthSummary, getDateWiseSummary, getPlywoodDailyOperationsSummary, executeStoredProcedure };
+async function getActiveYears(req, res) {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request()
+      .query('SELECT YEAR_NO FROM tb_m_year WHERE ACTSTATUS = 1 ORDER BY YEAR_NO DESC');
+
+    res.json({ success: true, data: result.recordset });
+  } catch (err) {
+    console.error('Error fetching active years:', err);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Database error', 
+      error: err.message 
+    });
+  }
+}
+
+module.exports = { getOrderListByDate, getOrderListByDeliveryDate, getPendingOrders, getPendingSubOrders, getCurrentMonthSummary, getDateWiseSummary, getPlywoodDailyOperationsSummary, executeStoredProcedure, getActiveYears };

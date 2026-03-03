@@ -66,6 +66,27 @@ body {
     padding: 0 !important;
   }
 
+  /* Landscape sticker specific styles */
+  .sticker-landscape {
+    page-break-after: always !important;
+    break-after: page !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    display: block !important;
+    visibility: visible !important;
+    width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .sticker-landscape > div {
+    width: 100% !important;
+    height: auto !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+  }
+
   /* Remove the last page break to avoid blank page */
   .sticker-print-page:last-child {
     page-break-after: auto !important;
@@ -162,10 +183,28 @@ body {
   }
 }
 
-/* Page setup for A4 */
+/* Page setup for A4 - Default portrait */
 @page {
   size: A4;
   margin: 0;
+}
+
+/* Landscape page setup when needed */
+@page landscape {
+  size: A4 landscape;
+  margin: 3mm;
+}
+
+/* Apply landscape page to landscape stickers */
+.sticker-landscape {
+  page: landscape;
+}
+
+/* Remove the last page break to avoid blank page */
+.sticker-print-page:last-child,
+.sticker-landscape:last-child {
+  page-break-after: auto !important;
+  break-after: auto !important;
 }
 
 /* Additional CSS to try to hide browser headers/footers */

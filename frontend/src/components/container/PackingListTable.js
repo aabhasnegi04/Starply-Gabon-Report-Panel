@@ -1,14 +1,15 @@
 import React from 'react';
 import { Box, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper } from '@mui/material';
 
-const PackingListTable = ({ data }) => {
+const PackingListTable = ({ data, columnVisibility = { glue: true, quality: true, type: false, species: false } }) => {
   const {
     companyInfo,
     workOrderInfo,
     mainRows,
     containerInfo,
     summaryRows,
-    originData
+    originData,
+    weightData // Add weightData to destructuring
   } = data;
 
   const containerNo = containerInfo?.ContainerNo || '';
@@ -33,19 +34,19 @@ const PackingListTable = ({ data }) => {
   const exporterName = companyInfo?.Company_Name || 'STAR PLY GABON';
   const exporterAddress = companyInfo?.ADDRESS || 'BP 1024, PLOT NO B2/B1, GSEZ, NKOK, LIBREVILLE, GABON';
   const exporterEmail = companyInfo?.EMAIL || 'starplygabon@gmail.com';
-  const exporterTel = companyInfo?.CONTACT_NO || '+241 66884164, 62357222';
-  
+  // const exporterTel = companyInfo?.CONTACT_NO || '+241 66884164, 62357222'; // Unused variable removed
 
+  
   
   // Consignee info
   const consigneeName = workOrderInfo?.SHIPTO_PARTYNAME || containerInfo?.CONSIGNEE || '';
   const consigneeAddress = workOrderInfo?.SHIPTOADDRESS || workOrderInfo?.shiptoaddress || workOrderInfo?.ShipToAddress || '';
   const consigneeCountry = workOrderInfo?.DESTINATION_COUNTRY || '';
-  const notifyParty = workOrderInfo?.CONSIGNEE_NAME || '';
+  // const notifyParty = workOrderInfo?.CONSIGNEE_NAME || ''; // Unused variable removed
   
-  // FSC Certification
+  // FSC Certification - Only show if CERTIFICATION_LEGAL exactly equals "FSC"
   const certificationLegal = workOrderInfo?.CERTIFICATION_LEGAL || '';
-  const isFSC = certificationLegal.toUpperCase().includes('FSC');
+  const isFSC = certificationLegal.toUpperCase() === 'FSC';
 
   // Calculate cumulative CBM
   let cumulativeCBM = 0;
@@ -61,21 +62,49 @@ const PackingListTable = ({ data }) => {
 
   const totalCBM = cumulativeCBM;
   const totalPallets = packingRows.length;
-  const totalWeight = workOrderInfo?.Poids_Net || '22500';
+  const totalWeight = weightData?.WEIGHT || workOrderInfo?.Poids_Net || '22500'; // Use WEIGHT from record set 8
   const totalQuantity = packingRows.reduce((sum, row) => sum + (parseInt(row.PCS) || 0), 0);
 
-  // Dynamic scaling based on row count - balanced approach to utilize page space
+  // Dynamic scaling based on row count AND column count - balanced approach to utilize page space
   const rowCount = packingRows.length;
   
+  // Count visible columns (base columns + optional columns)
+  const baseColumnCount = 4; // PALLET NO., Description, Quantité, Metre Cube
+  const optionalColumnCount = Object.values(columnVisibility).filter(Boolean).length;
+  const totalColumnCount = baseColumnCount + optionalColumnCount;
+  
   const getOptimalScale = () => {
-    if (rowCount <= 15) return 1.0;
-    if (rowCount <= 20) return 0.92;
-    if (rowCount <= 25) return 0.87;
-    if (rowCount <= 30) return 0.82;
-    if (rowCount <= 35) return 0.78;
-    if (rowCount <= 40) return 0.74;
-    if (rowCount <= 45) return 0.71;
-    return 0.68; // For very large containers
+    // Base scale factor based on row count
+    let baseScale;
+    if (rowCount <= 15) baseScale = 1.0;
+    else if (rowCount <= 20) baseScale = 0.94;
+    else if (rowCount <= 25) baseScale = 0.88;
+    else if (rowCount <= 30) baseScale = 0.82;
+    else if (rowCount <= 35) baseScale = 0.78;
+    else if (rowCount <= 40) baseScale = 0.74;
+    else if (rowCount <= 45) baseScale = 0.70;
+    else baseScale = 0.68;
+    
+    // Column scaling - more aggressive for single columns to prevent overflow
+    let columnScale = 1.0;
+    if (totalColumnCount <= 4) columnScale = 1.0;
+    else if (totalColumnCount === 5) {
+      // Single optional column - be more aggressive to prevent overflow
+      columnScale = 0.92;
+    }
+    else if (totalColumnCount === 6) columnScale = 0.88;
+    else if (totalColumnCount === 7) columnScale = 0.84;
+    else columnScale = 0.80;
+    
+    // FSC scaling - more aggressive when needed
+    let fscScale = 1.0;
+    if (isFSC) {
+      if (rowCount >= 30 && totalColumnCount >= 6) fscScale = 0.95;
+      else if (rowCount >= 25 && totalColumnCount >= 5) fscScale = 0.97;
+      else if (rowCount >= 20 || totalColumnCount >= 6) fscScale = 0.98;
+    }
+    
+    return baseScale * columnScale * fscScale;
   };
 
   const scaleFactor = getOptimalScale();
@@ -84,25 +113,50 @@ const PackingListTable = ({ data }) => {
   };
 
   const getPadding = () => {
-    if (rowCount <= 15) return '8mm 6mm';
-    if (rowCount <= 20) return '7mm 5mm';
-    if (rowCount <= 25) return '6mm 4.5mm';
-    if (rowCount <= 30) return '5.5mm 4mm';
-    if (rowCount <= 35) return '5mm 3.5mm';
-    if (rowCount <= 40) return '4.5mm 3mm';
-    return '4mm 2.5mm'; // Balanced for large containers
+    // More aggressive padding reduction for better space utilization
+    const basePadding = (() => {
+      if (rowCount <= 15) return { top: 8, side: 6 };
+      if (rowCount <= 20) return { top: 7, side: 5 };
+      if (rowCount <= 25) return { top: 6, side: 4 };
+      if (rowCount <= 30) return { top: 5.5, side: 3.5 };
+      if (rowCount <= 35) return { top: 5, side: 3 };
+      if (rowCount <= 40) return { top: 4.5, side: 2.5 };
+      return { top: 4, side: 2 };
+    })();
+    
+    // More aggressive column-based adjustments for single columns
+    let columnAdjustment;
+    if (totalColumnCount <= 4) columnAdjustment = 1.0;
+    else if (totalColumnCount === 5) columnAdjustment = 0.90; // More aggressive for single column
+    else if (totalColumnCount === 6) columnAdjustment = 0.85;
+    else if (totalColumnCount === 7) columnAdjustment = 0.80;
+    else columnAdjustment = 0.75;
+    
+    return `${basePadding.top * columnAdjustment}mm ${basePadding.side * columnAdjustment}mm`;
   };
 
   const containerPadding = getPadding();
   
   const getSectionMargin = () => {
-    if (rowCount <= 15) return 0.8;
-    if (rowCount <= 20) return 0.7;
-    if (rowCount <= 25) return 0.62;
-    if (rowCount <= 30) return 0.55;
-    if (rowCount <= 35) return 0.5;
-    if (rowCount <= 40) return 0.45;
-    return 0.4; // Balanced margins for large containers
+    // More aggressive margin reduction for better space utilization
+    let baseMargin;
+    if (rowCount <= 15) baseMargin = 0.8;
+    else if (rowCount <= 20) baseMargin = 0.70;
+    else if (rowCount <= 25) baseMargin = 0.60;
+    else if (rowCount <= 30) baseMargin = 0.55;
+    else if (rowCount <= 35) baseMargin = 0.50;
+    else if (rowCount <= 40) baseMargin = 0.45;
+    else baseMargin = 0.40;
+    
+    // More aggressive column-based adjustments for single columns
+    let columnAdjustment;
+    if (totalColumnCount <= 4) columnAdjustment = 1.0;
+    else if (totalColumnCount === 5) columnAdjustment = 0.90; // More aggressive for single column
+    else if (totalColumnCount === 6) columnAdjustment = 0.85;
+    else if (totalColumnCount === 7) columnAdjustment = 0.80;
+    else columnAdjustment = 0.75;
+    
+    return baseMargin * columnAdjustment;
   };
 
   const sectionMargin = getSectionMargin();
@@ -114,27 +168,61 @@ const PackingListTable = ({ data }) => {
   const tableDataFontSize = `${getScaledValue(0.82, 0.67)}rem`;
   
   const getTableHeaderPaddingY = () => {
-    if (rowCount <= 15) return 0.6;
-    if (rowCount <= 20) return 0.52;
-    if (rowCount <= 25) return 0.46;
-    if (rowCount <= 30) return 0.41;
-    if (rowCount <= 35) return 0.37;
-    if (rowCount <= 40) return 0.33;
-    return 0.3; // Balanced padding for large containers
+    // More aggressive padding reduction for better space utilization
+    let basePadding;
+    if (rowCount <= 15) basePadding = 0.6;
+    else if (rowCount <= 20) basePadding = 0.50;
+    else if (rowCount <= 25) basePadding = 0.40;
+    else if (rowCount <= 30) basePadding = 0.35;
+    else if (rowCount <= 35) basePadding = 0.30;
+    else if (rowCount <= 40) basePadding = 0.25;
+    else basePadding = 0.20;
+    
+    // More aggressive column-based adjustments for single columns
+    let columnAdjustment;
+    if (totalColumnCount <= 4) columnAdjustment = 1.0;
+    else if (totalColumnCount === 5) columnAdjustment = 0.90; // More aggressive for single column
+    else if (totalColumnCount === 6) columnAdjustment = 0.85;
+    else if (totalColumnCount === 7) columnAdjustment = 0.80;
+    else columnAdjustment = 0.75;
+    
+    return basePadding * columnAdjustment;
   };
   
   const getTableDataPaddingY = () => {
-    if (rowCount <= 15) return 0.5;
-    if (rowCount <= 20) return 0.42;
-    if (rowCount <= 25) return 0.36;
-    if (rowCount <= 30) return 0.32;
-    if (rowCount <= 35) return 0.28;
-    if (rowCount <= 40) return 0.25;
-    return 0.22; // Balanced padding for large containers
+    // More aggressive padding reduction for better space utilization
+    let basePadding;
+    if (rowCount <= 15) basePadding = 0.5;
+    else if (rowCount <= 20) basePadding = 0.40;
+    else if (rowCount <= 25) basePadding = 0.30;
+    else if (rowCount <= 30) basePadding = 0.25;
+    else if (rowCount <= 35) basePadding = 0.20;
+    else if (rowCount <= 40) basePadding = 0.15;
+    else basePadding = 0.10;
+    
+    // More aggressive column-based adjustments for single columns
+    let columnAdjustment;
+    if (totalColumnCount <= 4) columnAdjustment = 1.0;
+    else if (totalColumnCount === 5) columnAdjustment = 0.90; // More aggressive for single column
+    else if (totalColumnCount === 6) columnAdjustment = 0.85;
+    else if (totalColumnCount === 7) columnAdjustment = 0.80;
+    else columnAdjustment = 0.75;
+    
+    return basePadding * columnAdjustment;
+  };
+
+  const getTableCellPaddingX = () => {
+    // More aggressive horizontal padding adjustments for single columns
+    if (totalColumnCount <= 4) return 0.5;
+    if (totalColumnCount === 5) return 0.35; // More aggressive for single column
+    if (totalColumnCount === 6) return 0.30;
+    if (totalColumnCount === 7) return 0.25;
+    return 0.20;
   };
 
   const tableHeaderPaddingY = getTableHeaderPaddingY();
   const tableDataPaddingY = getTableDataPaddingY();
+  const tableCellPaddingX = getTableCellPaddingX();
 
   return (
     <Box sx={{
@@ -230,7 +318,7 @@ const PackingListTable = ({ data }) => {
           {exporterAddress}
         </Typography>
         <Typography sx={{ fontSize: headerFontSize, lineHeight: 1.2 }}>
-          Email: {exporterEmail}
+          Email: {exporterEmail} | Tel: +241 62 35 72 22
         </Typography>
       </Box>
 
@@ -255,7 +343,7 @@ const PackingListTable = ({ data }) => {
           <strong>Port of Discharge:</strong> {portOfDischarge}
         </Typography>
         <Typography sx={{ fontSize: headerFontSize, lineHeight: 1.2 }}>
-          <strong>Purchase Order No.:</strong> PO {orderNo}
+          <strong>Purchase Order No.:</strong> {orderNo}
         </Typography>
       </Box>
 
@@ -278,22 +366,36 @@ const PackingListTable = ({ data }) => {
         <Table sx={{ borderCollapse: 'collapse', width: '100%' }} size="small">
           <TableHead>
             <TableRow sx={{ backgroundColor: '#ffb74d' }}>
-              <TableCell sx={{ border: '1px solid #000', fontWeight: 700, textAlign: 'center', py: tableHeaderPaddingY, fontSize: tableHeaderFontSize, px: 0.5, lineHeight: 1.1 }}>
+              <TableCell sx={{ border: '1px solid #000', fontWeight: 700, textAlign: 'center', py: tableHeaderPaddingY, fontSize: tableHeaderFontSize, px: tableCellPaddingX, lineHeight: 1.1 }}>
                 PALLET NO.
               </TableCell>
-              <TableCell sx={{ border: '1px solid #000', fontWeight: 700, textAlign: 'center', py: tableHeaderPaddingY, fontSize: tableHeaderFontSize, px: 0.5, lineHeight: 1.1 }}>
+              <TableCell sx={{ border: '1px solid #000', fontWeight: 700, textAlign: 'center', py: tableHeaderPaddingY, fontSize: tableHeaderFontSize, px: tableCellPaddingX, lineHeight: 1.1 }}>
                 Description des biens
               </TableCell>
-              <TableCell sx={{ border: '1px solid #000', fontWeight: 700, textAlign: 'center', py: tableHeaderPaddingY, fontSize: tableHeaderFontSize, px: 0.5, lineHeight: 1.1 }}>
+              <TableCell sx={{ border: '1px solid #000', fontWeight: 700, textAlign: 'center', py: tableHeaderPaddingY, fontSize: tableHeaderFontSize, px: tableCellPaddingX, lineHeight: 1.1 }}>
                 Quantité
               </TableCell>
-              <TableCell sx={{ border: '1px solid #000', fontWeight: 700, textAlign: 'center', py: tableHeaderPaddingY, fontSize: tableHeaderFontSize, px: 0.5, lineHeight: 1.1 }}>
-                Glue
-              </TableCell>
-              <TableCell sx={{ border: '1px solid #000', fontWeight: 700, textAlign: 'center', py: tableHeaderPaddingY, fontSize: tableHeaderFontSize, px: 0.5, lineHeight: 1.1 }}>
-                Type
-              </TableCell>
-              <TableCell sx={{ border: '1px solid #000', fontWeight: 700, textAlign: 'center', py: tableHeaderPaddingY, fontSize: tableHeaderFontSize, px: 0.5, lineHeight: 1.1 }}>
+              {columnVisibility.glue && (
+                <TableCell sx={{ border: '1px solid #000', fontWeight: 700, textAlign: 'center', py: tableHeaderPaddingY, fontSize: tableHeaderFontSize, px: tableCellPaddingX, lineHeight: 1.1 }}>
+                  Glue
+                </TableCell>
+              )}
+              {columnVisibility.quality && (
+                <TableCell sx={{ border: '1px solid #000', fontWeight: 700, textAlign: 'center', py: tableHeaderPaddingY, fontSize: tableHeaderFontSize, px: tableCellPaddingX, lineHeight: 1.1 }}>
+                  QUALITY
+                </TableCell>
+              )}
+              {columnVisibility.type && (
+                <TableCell sx={{ border: '1px solid #000', fontWeight: 700, textAlign: 'center', py: tableHeaderPaddingY, fontSize: tableHeaderFontSize, px: tableCellPaddingX, lineHeight: 1.1 }}>
+                  TYPE
+                </TableCell>
+              )}
+              {columnVisibility.species && (
+                <TableCell sx={{ border: '1px solid #000', fontWeight: 700, textAlign: 'center', py: tableHeaderPaddingY, fontSize: tableHeaderFontSize, px: tableCellPaddingX, lineHeight: 1.1 }}>
+                  SPECIES
+                </TableCell>
+              )}
+              <TableCell sx={{ border: '1px solid #000', fontWeight: 700, textAlign: 'center', py: tableHeaderPaddingY, fontSize: tableHeaderFontSize, px: tableCellPaddingX, lineHeight: 1.1 }}>
                 Metre Cube
               </TableCell>
             </TableRow>
@@ -301,23 +403,37 @@ const PackingListTable = ({ data }) => {
           <TableBody>
             {packingRows.map((row, index) => (
               <TableRow key={index} sx={{ backgroundColor: '#fff' }}>
-                <TableCell sx={{ border: '1px solid #000', textAlign: 'center', py: tableDataPaddingY, fontSize: tableDataFontSize, px: 0.5, lineHeight: 1.1 }}>
+                <TableCell sx={{ border: '1px solid #000', textAlign: 'center', py: tableDataPaddingY, fontSize: tableDataFontSize, px: tableCellPaddingX, lineHeight: 1.1 }}>
                   {row.LOTNUMBER || index + 1}/{row.TOTAL_PALLETS || totalPallets}
                 </TableCell>
-                <TableCell sx={{ border: '1px solid #000', textAlign: 'center', py: tableDataPaddingY, fontSize: tableDataFontSize, px: 0.5, lineHeight: 1.1 }}>
+                <TableCell sx={{ border: '1px solid #000', textAlign: 'center', py: tableDataPaddingY, fontSize: tableDataFontSize, px: tableCellPaddingX, lineHeight: 1.1 }}>
                   Contre-plaqué {row.LENGTH} X {row.WIDTH} X {row.THICKNESS} MM
                 </TableCell>
-                <TableCell sx={{ border: '1px solid #000', textAlign: 'center', py: tableDataPaddingY, fontSize: tableDataFontSize, px: 0.5, lineHeight: 1.1 }}>
+                <TableCell sx={{ border: '1px solid #000', textAlign: 'center', py: tableDataPaddingY, fontSize: tableDataFontSize, px: tableCellPaddingX, lineHeight: 1.1 }}>
                   {row.PCS} PCS. (1 PACKAGE OF {row.PCS} PCS.)
                 </TableCell>
-                <TableCell sx={{ border: '1px solid #000', textAlign: 'center', py: tableDataPaddingY, fontSize: tableDataFontSize, px: 0.5, lineHeight: 1.1 }}>
-                  {row.GLUE || ''}
-                </TableCell>
-                <TableCell sx={{ border: '1px solid #000', textAlign: 'center', py: tableDataPaddingY, fontSize: tableDataFontSize, px: 0.5, lineHeight: 1.1 }}>
-                  {row.TYPE || ''}
-                </TableCell>
-                <TableCell sx={{ border: '1px solid #000', textAlign: 'center', py: tableDataPaddingY, fontSize: tableDataFontSize, px: 0.5, lineHeight: 1.1 }}>
-                  {row.individualCBM.toFixed(3)}
+                {columnVisibility.glue && (
+                  <TableCell sx={{ border: '1px solid #000', textAlign: 'center', py: tableDataPaddingY, fontSize: tableDataFontSize, px: tableCellPaddingX, lineHeight: 1.1 }}>
+                    {row.GLUE || ''}
+                  </TableCell>
+                )}
+                {columnVisibility.quality && (
+                  <TableCell sx={{ border: '1px solid #000', textAlign: 'center', py: tableDataPaddingY, fontSize: tableDataFontSize, px: tableCellPaddingX, lineHeight: 1.1 }}>
+                    {row.QUALITY || ''}
+                  </TableCell>
+                )}
+                {columnVisibility.type && (
+                  <TableCell sx={{ border: '1px solid #000', textAlign: 'center', py: tableDataPaddingY, fontSize: tableDataFontSize, px: tableCellPaddingX, lineHeight: 1.1 }}>
+                    {row.TYPE || ''}
+                  </TableCell>
+                )}
+                {columnVisibility.species && (
+                  <TableCell sx={{ border: '1px solid #000', textAlign: 'center', py: tableDataPaddingY, fontSize: tableDataFontSize, px: tableCellPaddingX, lineHeight: 1.1 }}>
+                    {row.SPECIES || ''}
+                  </TableCell>
+                )}
+                <TableCell sx={{ border: '1px solid #000', textAlign: 'center', py: tableDataPaddingY, fontSize: tableDataFontSize, px: tableCellPaddingX, lineHeight: 1.1 }}>
+                  {parseFloat(row.individualCBM).toFixed(3)}
                 </TableCell>
               </TableRow>
             ))}
@@ -342,11 +458,70 @@ const PackingListTable = ({ data }) => {
             <strong>Total Quantité:</strong> {totalQuantity} PCS
           </Typography>
           <Typography sx={{ fontSize: headerFontSize, mb: sectionMargin * 0.25, lineHeight: 1.2 }}>
-            <strong>Total Metre Cube:</strong> {totalCBM.toFixed(3)}
+            <strong>Total Metre Cube:</strong> {parseFloat(totalCBM).toFixed(3)}
           </Typography>
-          <Typography sx={{ fontSize: headerFontSize, lineHeight: 1.2 }}>
+          <Typography sx={{ fontSize: headerFontSize, mb: sectionMargin * 0.5, lineHeight: 1.2 }}>
             <strong>Poids Net (Net Weight):</strong> {totalWeight} KGS
           </Typography>
+
+          {/* FSC Certification Block - Only show if FSC 100% */}
+          {isFSC && (
+            <Box sx={{
+              mt: sectionMargin * (totalColumnCount > 6 ? 0.2 : 0.3),
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              textAlign: 'center'
+            }}>
+              {/* FSC Certificate Image */}
+              <Box
+                component="img"
+                src="/fsc-certificate.jpeg"
+                alt="FSC Certificate"
+                sx={{
+                  width: `${getScaledValue(
+                    totalColumnCount > 6 && rowCount >= 20 ? 70 : 
+                    totalColumnCount > 6 ? 80 : 
+                    rowCount >= 25 ? 85 : 100, 
+                    50
+                  )}px`,
+                  height: 'auto',
+                  mb: sectionMargin * (totalColumnCount > 6 ? 0.1 : 0.15)
+                }}
+              />
+              
+              {/* Certificate Number */}
+              <Typography sx={{ 
+                fontSize: `${getScaledValue(
+                  totalColumnCount > 6 && rowCount >= 20 ? 0.55 : 
+                  totalColumnCount > 6 ? 0.6 : 
+                  rowCount >= 25 ? 0.6 : 0.65, 
+                  0.4
+                )}rem`,
+                fontWeight: 600,
+                mb: sectionMargin * (totalColumnCount > 6 ? 0.05 : 0.1),
+                lineHeight: 1.1
+              }}>
+                CU-COC-874178
+              </Typography>
+              
+              {/* FSC Disclaimer */}
+              <Typography sx={{ 
+                fontSize: `${getScaledValue(
+                  totalColumnCount > 6 && rowCount >= 20 ? 0.45 : 
+                  totalColumnCount > 6 ? 0.5 : 
+                  rowCount >= 25 ? 0.5 : 0.55, 
+                  0.3
+                )}rem`,
+                lineHeight: 1.0,
+                maxWidth: '100%',
+                fontStyle: 'italic'
+              }}>
+                "Only the products that are identified as such on this document are 100% FSC ®️ certified"
+              </Typography>
+            </Box>
+          )}
         </Box>
 
         {/* Right Side - 60% - Summary Table */}
@@ -354,7 +529,7 @@ const PackingListTable = ({ data }) => {
           flex: '0 0 60%',
           width: '60%'
         }}>
-          {summaryRows && summaryRows.length > 0 && (
+          {data.summaryRows && data.summaryRows.length > 0 && (
             <Table sx={{ 
               borderCollapse: 'collapse', 
               width: '100%',
@@ -368,7 +543,7 @@ const PackingListTable = ({ data }) => {
                     textAlign: 'center',
                     py: 0.35,
                     fontSize: `${getScaledValue(0.8, 0.6)}rem`,
-                    px: 0.5
+                    px: tableCellPaddingX * 0.7
                   }}>
                     THICKNESS
                   </TableCell>
@@ -378,7 +553,7 @@ const PackingListTable = ({ data }) => {
                     textAlign: 'center',
                     py: 0.35,
                     fontSize: `${getScaledValue(0.8, 0.6)}rem`,
-                    px: 0.5
+                    px: tableCellPaddingX * 0.7
                   }}>
                     LENGTH
                   </TableCell>
@@ -388,7 +563,7 @@ const PackingListTable = ({ data }) => {
                     textAlign: 'center',
                     py: 0.35,
                     fontSize: `${getScaledValue(0.8, 0.6)}rem`,
-                    px: 0.5
+                    px: tableCellPaddingX * 0.7
                   }}>
                     WIDTH
                   </TableCell>
@@ -398,7 +573,7 @@ const PackingListTable = ({ data }) => {
                     textAlign: 'center',
                     py: 0.35,
                     fontSize: `${getScaledValue(0.8, 0.6)}rem`,
-                    px: 0.5
+                    px: tableCellPaddingX * 0.7
                   }}>
                     PCS
                   </TableCell>
@@ -408,7 +583,7 @@ const PackingListTable = ({ data }) => {
                     textAlign: 'center',
                     py: 0.35,
                     fontSize: `${getScaledValue(0.8, 0.6)}rem`,
-                    px: 0.5
+                    px: tableCellPaddingX * 0.7
                   }}>
                     CBM
                   </TableCell>
@@ -424,7 +599,7 @@ const PackingListTable = ({ data }) => {
                       textAlign: 'center',
                       py: 0.25,
                       fontSize: `${getScaledValue(0.75, 0.55)}rem`,
-                      px: 0.5,
+                      px: tableCellPaddingX * 0.7,
                       fontWeight: row.THICKNESS === 'TOTAL' ? 700 : 400
                     }}>
                       {row.THICKNESS || ''}
@@ -434,7 +609,7 @@ const PackingListTable = ({ data }) => {
                       textAlign: 'center',
                       py: 0.25,
                       fontSize: `${getScaledValue(0.75, 0.55)}rem`,
-                      px: 0.5,
+                      px: tableCellPaddingX * 0.7,
                       fontWeight: row.THICKNESS === 'TOTAL' ? 700 : 400
                     }}>
                       {row.LENGTH === null || row.LENGTH === 'NULL' ? '-' : row.LENGTH}
@@ -444,7 +619,7 @@ const PackingListTable = ({ data }) => {
                       textAlign: 'center',
                       py: 0.25,
                       fontSize: `${getScaledValue(0.75, 0.55)}rem`,
-                      px: 0.5,
+                      px: tableCellPaddingX * 0.7,
                       fontWeight: row.THICKNESS === 'TOTAL' ? 700 : 400
                     }}>
                       {row.WIDTH === null || row.WIDTH === 'NULL' ? '-' : row.WIDTH}
@@ -454,7 +629,7 @@ const PackingListTable = ({ data }) => {
                       textAlign: 'center',
                       py: 0.25,
                       fontSize: `${getScaledValue(0.75, 0.55)}rem`,
-                      px: 0.5,
+                      px: tableCellPaddingX * 0.7,
                       fontWeight: row.THICKNESS === 'TOTAL' ? 700 : 400
                     }}>
                       {row.PCS || ''}
@@ -464,39 +639,16 @@ const PackingListTable = ({ data }) => {
                       textAlign: 'center',
                       py: 0.25,
                       fontSize: `${getScaledValue(0.75, 0.55)}rem`,
-                      px: 0.5,
+                      px: tableCellPaddingX * 0.7,
                       fontWeight: row.THICKNESS === 'TOTAL' ? 700 : 400
                     }}>
-                      {row.CBM || ''}
+                      {row.CBM ? parseFloat(row.CBM).toFixed(3) : ''}
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           )}
-        </Box>
-      </Box>
-
-      {/* Company Contact Box - Moved to bottom */}
-      <Box sx={{ 
-        mt: sectionMargin, 
-        p: sectionMargin * 0.8, 
-        border: '2px solid #000', 
-        borderRadius: 0,
-        display: 'flex',
-        alignItems: 'flex-start',
-        gap: 1
-      }}>
-        <Box>
-          <Typography sx={{ fontSize: headerFontSize, fontWeight: 700, mb: sectionMargin * 0.25, lineHeight: 1.2 }}>
-            {exporterName}
-          </Typography>
-          <Typography sx={{ fontSize: headerFontSize, mb: sectionMargin * 0.25, lineHeight: 1.2 }}>
-            {exporterAddress.split(',')[0]}
-          </Typography>
-          <Typography sx={{ fontSize: headerFontSize, lineHeight: 1.2 }}>
-            Tel: {exporterTel}
-          </Typography>
         </Box>
       </Box>
     </Box>

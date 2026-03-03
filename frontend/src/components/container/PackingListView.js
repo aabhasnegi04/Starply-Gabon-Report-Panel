@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { 
   Container, Card, CardContent, Typography, TextField, Button, Box, 
   CircularProgress, Alert, Table, TableBody, TableCell, TableContainer, 
-  TableHead, TableRow, Paper, IconButton
+  TableHead, TableRow, Paper, IconButton, FormControlLabel, Checkbox, FormGroup
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import PrintIcon from '@mui/icons-material/Print';
@@ -20,6 +20,21 @@ const PackingListView = ({ onBackClick }) => {
   const [error, setError] = useState('');
   const [data, setData] = useState(null);
   const printRef = useRef();
+
+  // Column visibility state
+  const [columnVisibility, setColumnVisibility] = useState({
+    glue: true,
+    quality: true,
+    type: false,
+    species: false
+  });
+
+  const handleColumnToggle = (column) => {
+    setColumnVisibility(prev => ({
+      ...prev,
+      [column]: !prev[column]
+    }));
+  };
 
   const handlePrint = useReactToPrint({
     contentRef: printRef,
@@ -51,38 +66,56 @@ const PackingListView = ({ onBackClick }) => {
   const handleExcelDownload = () => {
     if (!data || !data.mainRows.length) return;
 
-    // Prepare data for Excel export
-    const excelData = data.mainRows.map((row, index) => ({
-      'Pallet No.': row.LOTNUMBER || `${index + 1}/${data.mainRows.length}`,
-      'Description': `Contre-plaqué ${row.LENGTH} X ${row.WIDTH} X ${row.THICKNESS} MM`,
-      'Quantity (PCS)': row.PCS,
-      'Glue': row.GLUE,
-      'Type': row.TYPE,
-      'CBM': parseFloat(row.CBM).toFixed(3),
-      'Length (mm)': row.LENGTH,
-      'Width (mm)': row.WIDTH,
-      'Thickness (mm)': row.THICKNESS,
-      'Quality': row.QUALITY,
-      'Species': row.SPECIES
-    }));
+    // Prepare data for Excel export with dynamic columns
+    const excelData = data.mainRows.map((row, index) => {
+      const baseData = {
+        'Pallet No.': row.LOTNUMBER || `${index + 1}/${data.mainRows.length}`,
+        'Description': `Contre-plaqué ${row.LENGTH} X ${row.WIDTH} X ${row.THICKNESS} MM`,
+        'Quantity (PCS)': row.PCS,
+        'CBM': parseFloat(row.CBM).toFixed(3),
+        'Length (mm)': row.LENGTH,
+        'Width (mm)': row.WIDTH,
+        'Thickness (mm)': row.THICKNESS
+      };
+
+      // Add optional columns based on visibility
+      if (columnVisibility.glue) {
+        baseData['Glue'] = row.GLUE;
+      }
+      if (columnVisibility.quality) {
+        baseData['Quality'] = row.QUALITY;
+      }
+      if (columnVisibility.type) {
+        baseData['Type'] = row.TYPE;
+      }
+      if (columnVisibility.species) {
+        baseData['Species'] = row.SPECIES;
+      }
+
+      return baseData;
+    });
 
     // Add summary row
     const totalQuantity = data.mainRows.reduce((sum, row) => sum + (parseInt(row.PCS) || 0), 0);
     const totalCBM = data.mainRows.reduce((sum, row) => sum + (parseFloat(row.CBM) || 0), 0);
     
-    excelData.push({
+    const summaryRow = {
       'Pallet No.': '',
       'Description': 'TOTALS',
       'Quantity (PCS)': totalQuantity,
-      'Glue': '',
-      'Type': '',
       'CBM': totalCBM.toFixed(3),
       'Length (mm)': '',
       'Width (mm)': '',
-      'Thickness (mm)': '',
-      'Quality': '',
-      'Species': ''
-    });
+      'Thickness (mm)': ''
+    };
+
+    // Add empty values for optional columns in summary
+    if (columnVisibility.glue) summaryRow['Glue'] = '';
+    if (columnVisibility.quality) summaryRow['Quality'] = '';
+    if (columnVisibility.type) summaryRow['Type'] = '';
+    if (columnVisibility.species) summaryRow['Species'] = '';
+
+    excelData.push(summaryRow);
 
     const worksheet = XLSX.utils.json_to_sheet(excelData);
     const workbook = XLSX.utils.book_new();
@@ -111,6 +144,7 @@ const PackingListView = ({ onBackClick }) => {
       const certificatesRow = apiData.data?.[4]?.[0] || {};
       const summaryRows = apiData.data?.[5] || []; // Recordset 6 (index 5)
       const originData = apiData.data?.[6]?.[0] || {}; // Recordset 7 (index 6)
+      const weightData = apiData.data?.[7]?.[0] || {}; // Recordset 8 (index 7) - New weight data
 
       if (mainRows.length === 0) {
         setError('No records found for this container.');
@@ -124,6 +158,7 @@ const PackingListView = ({ onBackClick }) => {
         containerInfo,
         summaryRows,
         originData,
+        weightData, // Add weight data to the state
         certificates: [
           certificatesRow.CERTIFICATE1,
           certificatesRow.CERTIFICATE2,
@@ -248,7 +283,7 @@ const PackingListView = ({ onBackClick }) => {
         </CardContent>
       </Card>
 
-      {/* Results Header with Print Button */}
+      {/* Results Header with Print Button and Column Selection */}
       {data && (
         <Card sx={{ 
           mb: 3, 
@@ -321,6 +356,62 @@ const PackingListView = ({ onBackClick }) => {
                 </Button>
               </Box>
             </Box>
+            
+            {/* Column Selection Checkboxes */}
+            <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #e0e0e0' }}>
+              <Typography variant="body2" sx={{ mb: 1, fontWeight: 600, color: '#1b4332' }}>
+                Select Additional Columns:
+              </Typography>
+              <FormGroup row>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={columnVisibility.glue}
+                      onChange={() => handleColumnToggle('glue')}
+                      size="small"
+                      sx={{ color: '#1b4332', '&.Mui-checked': { color: '#1b4332' } }}
+                    />
+                  }
+                  label="Glue"
+                  sx={{ mr: 3 }}
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={columnVisibility.quality}
+                      onChange={() => handleColumnToggle('quality')}
+                      size="small"
+                      sx={{ color: '#1b4332', '&.Mui-checked': { color: '#1b4332' } }}
+                    />
+                  }
+                  label="Quality"
+                  sx={{ mr: 3 }}
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={columnVisibility.type}
+                      onChange={() => handleColumnToggle('type')}
+                      size="small"
+                      sx={{ color: '#1b4332', '&.Mui-checked': { color: '#1b4332' } }}
+                    />
+                  }
+                  label="Type"
+                  sx={{ mr: 3 }}
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={columnVisibility.species}
+                      onChange={() => handleColumnToggle('species')}
+                      size="small"
+                      sx={{ color: '#1b4332', '&.Mui-checked': { color: '#1b4332' } }}
+                    />
+                  }
+                  label="Species"
+                />
+              </FormGroup>
+            </Box>
           </CardContent>
         </Card>
       )}
@@ -389,7 +480,7 @@ const PackingListView = ({ onBackClick }) => {
                 <Typography sx={{ fontSize: { xs: '0.75rem', sm: '0.85rem' } }}>
                   Source d'approvisionnement: CFAD {data.originData?.ORIGIN || 'HAUT-ABANGA'} - UFA-UFG1 {data.originData?.AAC || 'ACC1422'}
                 </Typography>
-                {(data.workOrderInfo?.CERTIFICATION_LEGAL || '').toUpperCase().includes('FSC') && (
+                {(data.workOrderInfo?.CERTIFICATION_LEGAL || '').toUpperCase() === 'FSC' && (
                   <Typography sx={{ fontSize: { xs: '0.75rem', sm: '0.85rem' }, mt: 0.5, fontWeight: 600 }}>
                     <strong>LEVEL CERTIFICATION: FSC 100%</strong>
                   </Typography>
@@ -431,7 +522,7 @@ const PackingListView = ({ onBackClick }) => {
                   <strong>Species:</strong> {data.containerInfo?.SPICES || ''}
                 </Typography>
                 <Typography sx={{ fontSize: '0.85rem' }}>
-                  <strong>Purchase Order No.:</strong> PO {data.containerInfo?.ORDERNO || data.workOrderInfo?.Work_OrderNo || ''}
+                  <strong>Purchase Order No.:</strong> {data.containerInfo?.ORDERNO || data.workOrderInfo?.Work_OrderNo || ''}
                 </Typography>
                 <Typography sx={{ fontSize: '0.85rem' }}>
                   <strong>Incoterm:</strong> {data.workOrderInfo?.SHIPPING_TERM || 'FOB'}
@@ -504,22 +595,46 @@ const PackingListView = ({ onBackClick }) => {
                     }}>
                       Quantité
                     </TableCell>
-                    <TableCell sx={{ 
-                      fontWeight: 700, 
-                      textAlign: 'center', 
-                      py: 1,
-                      minWidth: { xs: '80px', sm: '100px' }
-                    }}>
-                      Glue
-                    </TableCell>
-                    <TableCell sx={{ 
-                      fontWeight: 700, 
-                      textAlign: 'center', 
-                      py: 1,
-                      minWidth: { xs: '80px', sm: '100px' }
-                    }}>
-                      Type
-                    </TableCell>
+                    {columnVisibility.glue && (
+                      <TableCell sx={{ 
+                        fontWeight: 700, 
+                        textAlign: 'center', 
+                        py: 1,
+                        minWidth: { xs: '80px', sm: '100px' }
+                      }}>
+                        Glue
+                      </TableCell>
+                    )}
+                    {columnVisibility.quality && (
+                      <TableCell sx={{ 
+                        fontWeight: 700, 
+                        textAlign: 'center', 
+                        py: 1,
+                        minWidth: { xs: '80px', sm: '100px' }
+                      }}>
+                        QUALITY
+                      </TableCell>
+                    )}
+                    {columnVisibility.type && (
+                      <TableCell sx={{ 
+                        fontWeight: 700, 
+                        textAlign: 'center', 
+                        py: 1,
+                        minWidth: { xs: '80px', sm: '100px' }
+                      }}>
+                        TYPE
+                      </TableCell>
+                    )}
+                    {columnVisibility.species && (
+                      <TableCell sx={{ 
+                        fontWeight: 700, 
+                        textAlign: 'center', 
+                        py: 1,
+                        minWidth: { xs: '80px', sm: '100px' }
+                      }}>
+                        SPECIES
+                      </TableCell>
+                    )}
                     <TableCell sx={{ 
                       fontWeight: 700, 
                       textAlign: 'center', 
@@ -542,14 +657,28 @@ const PackingListView = ({ onBackClick }) => {
                       <TableCell sx={{ textAlign: 'center' }}>
                         {row.PCS} PCS. (1 PACKAGE OF {row.PCS} PCS.)
                       </TableCell>
+                      {columnVisibility.glue && (
+                        <TableCell sx={{ textAlign: 'center' }}>
+                          {row.GLUE || ''}
+                        </TableCell>
+                      )}
+                      {columnVisibility.quality && (
+                        <TableCell sx={{ textAlign: 'center' }}>
+                          {row.QUALITY || ''}
+                        </TableCell>
+                      )}
+                      {columnVisibility.type && (
+                        <TableCell sx={{ textAlign: 'center' }}>
+                          {row.TYPE || ''}
+                        </TableCell>
+                      )}
+                      {columnVisibility.species && (
+                        <TableCell sx={{ textAlign: 'center' }}>
+                          {row.SPECIES || ''}
+                        </TableCell>
+                      )}
                       <TableCell sx={{ textAlign: 'center' }}>
-                        {row.GLUE || ''}
-                      </TableCell>
-                      <TableCell sx={{ textAlign: 'center' }}>
-                        {row.TYPE || ''}
-                      </TableCell>
-                      <TableCell sx={{ textAlign: 'center' }}>
-                        {row.individualCBM.toFixed(3)}
+                        {parseFloat(row.individualCBM).toFixed(3)}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -574,11 +703,55 @@ const PackingListView = ({ onBackClick }) => {
                   <strong>Total Quantité:</strong> {data.mainRows.reduce((sum, row) => sum + (parseInt(row.PCS) || 0), 0)} PCS
                 </Typography>
                 <Typography sx={{ fontSize: '0.85rem', mb: 0.5 }}>
-                  <strong>Total Metre Cube:</strong> {getPackingListData(data.mainRows).reduce((sum, row) => sum + row.individualCBM, 0).toFixed(3)}
+                  <strong>Total Metre Cube:</strong> {parseFloat(getPackingListData(data.mainRows).reduce((sum, row) => sum + row.individualCBM, 0)).toFixed(3)}
                 </Typography>
-                <Typography sx={{ fontSize: '0.85rem' }}>
-                  <strong>Poids Net (Net Weight):</strong> {data.workOrderInfo?.Poids_Net || '22500'} KGS
+                <Typography sx={{ fontSize: '0.85rem', mb: 1 }}>
+                  <strong>Poids Net (Net Weight):</strong> {data.weightData?.WEIGHT || data.workOrderInfo?.Poids_Net || '22500'} KGS
                 </Typography>
+
+                {/* FSC Certification Block - Only show if CERTIFICATION_LEGAL exactly equals "FSC" */}
+                {(data.workOrderInfo?.CERTIFICATION_LEGAL || '').toUpperCase() === 'FSC' && (
+                  <Box sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    textAlign: 'center',
+                    mt: 2
+                  }}>
+                    {/* FSC Certificate Image */}
+                    <Box
+                      component="img"
+                      src="/fsc-certificate.jpeg"
+                      alt="FSC Certificate"
+                      sx={{
+                        width: '80px',
+                        height: 'auto',
+                        mb: 1
+                      }}
+                    />
+                    
+                    {/* Certificate Number */}
+                    <Typography sx={{ 
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      mb: 0.5,
+                      lineHeight: 1.1
+                    }}>
+                      CU-COC-874178
+                    </Typography>
+                    
+                    {/* FSC Disclaimer */}
+                    <Typography sx={{ 
+                      fontSize: '0.65rem',
+                      lineHeight: 1.1,
+                      maxWidth: '100%',
+                      fontStyle: 'italic'
+                    }}>
+                      "Only the products that are identified as such on this document are 100% FSC ®️ certified"
+                    </Typography>
+                  </Box>
+                )}
               </Box>
 
               {/* Right Side - 60% - Summary Table */}
@@ -642,7 +815,7 @@ const PackingListView = ({ onBackClick }) => {
                               textAlign: 'center',
                               fontWeight: row.THICKNESS === 'TOTAL' ? 700 : 400
                             }}>
-                              {row.CBM || ''}
+                              {row.CBM ? parseFloat(row.CBM).toFixed(3) : ''}
                             </TableCell>
                           </TableRow>
                         ))}
@@ -678,7 +851,7 @@ const PackingListView = ({ onBackClick }) => {
 
       {/* Hidden Print Area */}
       <div ref={printRef} className="print-only">
-        {data && <PackingListTable data={data} />}
+        {data && <PackingListTable data={data} columnVisibility={columnVisibility} />}
       </div>
     </Container>
   );

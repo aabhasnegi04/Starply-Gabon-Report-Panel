@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Container, Card, CardContent, Typography, Button, Box, 
   CircularProgress, Alert, Table, TableBody, TableCell, TableContainer, 
@@ -46,13 +46,51 @@ const LogInvoiceSummaryView = ({ onBackClick }) => {
   const [error, setError] = useState('');
   const [data, setData] = useState(null);
   const [year, setYear] = useState('');
+  const [yearOptions, setYearOptions] = useState([]);
 
-  // Generate year options (current year and previous 10 years)
-  const currentYear = new Date().getFullYear();
-  const yearOptions = [];
-  for (let i = 0; i <= 10; i++) {
-    yearOptions.push(currentYear - i);
-  }
+  // Fetch active years from database
+  useEffect(() => {
+    const fetchActiveYears = async () => {
+      try {
+        const res = await fetch(`${API_URL}/order/active-years`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+        
+        if (res.ok) {
+          const result = await res.json();
+          console.log('Years API Response:', result); // Debug log
+          const years = result.data?.map(row => parseInt(row.YEAR_NO)) || [];
+          setYearOptions(years);
+          
+          // Set current year as default if it exists in the list
+          const currentYear = new Date().getFullYear();
+          if (years.includes(currentYear)) {
+            setYear(currentYear);
+          } else if (years.length > 0) {
+            setYear(years[0]); // Set first available year
+          }
+        } else {
+          console.error('API Error:', res.status, res.statusText);
+          throw new Error('API request failed');
+        }
+      } catch (error) {
+        console.error('Error fetching active years:', error);
+        // Fallback to static years if API fails
+        const currentYear = new Date().getFullYear();
+        const fallbackYears = [];
+        for (let i = 0; i <= 10; i++) {
+          fallbackYears.push(currentYear - i);
+        }
+        setYearOptions(fallbackYears);
+        setYear(currentYear);
+      }
+    };
+
+    fetchActiveYears();
+  }, []);
 
   const handleExcelDownload = () => {
     if (!data || !data.length) return;
